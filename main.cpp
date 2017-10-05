@@ -34,21 +34,21 @@ int main(void)
 	for (int i = 0; i < 60000; i++)
 	{
 		inputLayer.updateInput(inputImage.images[i]);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer1.forwardPropagation(LayerBase::Activation::Relu);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
-		double j = cross_entropy(inputLabel.ans[i], layer2.getOutput(), layer2.nNeuron);
+		double j = cross_entropy(inputLabel.ans[i], layer2.getOutput(), layer2.numNeurons);
 		cout << i << " entropy " << j << endl;
 
 		layer2.backPropagation(LayerBase::Activation::Softmax, inputLabel.ans[i]);
-		layer1.backPropagation(LayerBase::Activation::Sigmoid);
+		layer1.backPropagation(LayerBase::Activation::Relu);
 	}
 
 	double cnt = 0;
 	for (int i = 0; i < 1000; i++)
 	{
 		inputLayer.updateInput(testImage.images[i]);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer1.forwardPropagation(LayerBase::Activation::Relu);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
 		double pred_max = 0;

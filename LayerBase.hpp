@@ -1,6 +1,8 @@
 #ifndef __LAYER_BASE__
 #define __LAYER_BASE__
 
+#define max(a, b) (a > b) ? (a) : (b);
+
 #include<math.h>
 #include<random>
 #include<time.h>
@@ -64,12 +66,12 @@ struct DJ // neuron data
 	double *dw;
 	double *db;
 	
-	DJ(int input_numNeurons, int numNeurons)
+	DJ(int input_num_neurons, int num_neurons)
 	{
-		dx = new double[numNeurons];
-		dz = new double[numNeurons];
-		dw = new double[numNeurons*input_numNeurons];
-		db = new double[numNeurons];
+		dx = new double[num_neurons];
+		dz = new double[num_neurons];
+		dw = new double[num_neurons*input_num_neurons];
+		db = new double[num_neurons];
 	}
 	DJ() {}
 
@@ -86,10 +88,10 @@ static double learning_rate = 0.01;
 class LayerBase
 {
 public:
-	enum Activation {Sigmoid=1, Softmax};
+	enum Activation {Identity, ReLU, Sigmoid, Softmax};
 public:
 	
-	int nNeuron;
+	int numNeurons;
 	bool isFirstLayer;
 protected:
 	LayerBase* inputLayer;
@@ -101,17 +103,17 @@ protected:
 	double *b;
 
 public:
-	explicit LayerBase(LayerBase* i_inputLayer, int numNeurons)
-		: inputLayer(i_inputLayer), nNeuron(numNeurons), isFirstLayer(false), 
-		dJ(i_inputLayer->nNeuron, numNeurons)
+	explicit LayerBase(LayerBase* i_inputLayer, int num_neurons)
+		: inputLayer(i_inputLayer), numNeurons(num_neurons), isFirstLayer(false),
+		dJ(i_inputLayer->numNeurons, num_neurons)
 	{
-		x = new double[nNeuron];
-		z = new double[nNeuron];
-		w = new double[nNeuron * inputLayer->nNeuron];
-		b = new double[nNeuron];
+		x = new double[numNeurons];
+		z = new double[numNeurons];
+		w = new double[numNeurons * inputLayer->numNeurons];
+		b = new double[numNeurons];
 
-		setRandomVec(b, nNeuron);
-		setRandomMat(w, inputLayer->nNeuron, nNeuron);
+		setRandomVec(b, numNeurons);
+		setRandomMat(w, inputLayer->numNeurons, numNeurons);
 	}
 	~LayerBase()
 	{
@@ -128,13 +130,13 @@ public:
 	{
 		LayerBase& in = (*inputLayer);
 		// Calculate z values
-		for (int i = 0; i < nNeuron; i++)
+		for (int i = 0; i < numNeurons; i++)
 			z[i] = 0;
 
-		for (int i = 0; i < nNeuron; i++)
+		for (int i = 0; i < numNeurons; i++)
 		{
-			for (int j = 0; j < in.nNeuron; j++)
-				z[i] += w[i*in.nNeuron + j] * in.x[j];
+			for (int j = 0; j < in.numNeurons; j++)
+				z[i] += w[i*in.numNeurons + j] * in.x[j];
 
 			z[i] += b[i];
 		}
@@ -142,12 +144,20 @@ public:
 		// Update x values
 		switch (act)
 		{
+		case Identity:
+			for (int i = 0; i < numNeurons; i++)
+				x[i] = z[i];
+			break;
+		case ReLU:
+			for (int i = 0; i < numNeurons; i++)
+				x[i] = max(z[i], 0);
+			break;
 		case Sigmoid:
-			for (int i = 0; i < nNeuron; i++)
+			for (int i = 0; i < numNeurons; i++)
 				sigmoid(z[i], x[i]);
 			break;
 		case Softmax:
-			softmax(z, x, nNeuron);
+			softmax(z, x, numNeurons);
 			break;
 		}
 	}
@@ -157,23 +167,31 @@ public:
 		LayerBase& in = (*inputLayer);
 		switch (act)
 		{
+		case Identity:
+			for (int i = 0; i < numNeurons; i++)
+				dJ.dz[i] = dJ.dx[i];
+			break;
+		case ReLU:
+			for (int i = 0; i < numNeurons; i++)
+				dJ.dz[i] = dJ.dx[i] * ((x[i] > 0) ? 1 : 0);
+			break;
 		case Sigmoid:
-			for (int i = 0; i < nNeuron; i++)
+			for (int i = 0; i < numNeurons; i++)
 				dJ.dz[i] = dJ.dx[i] * x[i] * (1 - x[i]);
 			break;
 		case Softmax: // Cross entropy
-			for (int i = 0; i < nNeuron; i++)
+			for (int i = 0; i < numNeurons; i++)
 				dJ.dz[i] = x[i] - ans[i];
 			break;
 		}
 
 		if (!in.isFirstLayer)
 		{
-			for (int j = 0; j < in.nNeuron; j++)
+			for (int j = 0; j < in.numNeurons; j++)
 			{
 				in.dJ.dx[j] = 0;
-				for (int i = 0; i < nNeuron; i++)
-					in.dJ.dx[j] += dJ.dz[i] * w[in.nNeuron * i + j];
+				for (int i = 0; i < numNeurons; i++)
+					in.dJ.dx[j] += dJ.dz[i] * w[in.numNeurons * i + j];
 			}
 		}
 		updateWeightBias();
@@ -182,14 +200,14 @@ public:
 	void updateWeightBias()
 	{
 		LayerBase& in = (*inputLayer);
-		for (int i = 0; i < nNeuron; i++)
+		for (int i = 0; i < numNeurons; i++)
 		{
 			dJ.db[i] = dJ.dz[i];
 			b[i] -= learning_rate * dJ.db[i];
-			for (int j = 0; j < in.nNeuron; j++)
+			for (int j = 0; j < in.numNeurons; j++)
 			{
-				dJ.dw[i * in.nNeuron + j] = dJ.dz[i] * in.x[j];
-				w[i * in.nNeuron + j] -= learning_rate * dJ.dw[i * in.nNeuron + j];
+				dJ.dw[i * in.numNeurons + j] = dJ.dz[i] * in.x[j];
+				w[i * in.numNeurons + j] -= learning_rate * dJ.dw[i * in.numNeurons + j];
 			}
 		}
 	}
@@ -200,7 +218,7 @@ public:
 		LayerBase ret;
 		ret.isFirstLayer = true;
 		ret.x = arr;
-		ret.nNeuron = size;
+		ret.numNeurons = size;
 		return ret;
 	}
 
