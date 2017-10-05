@@ -1,7 +1,19 @@
 #include<iostream>
 #include"FileReader.hpp"
-#include"Layer.hpp"
+#include"LayerBase.hpp"
 using namespace std;
+
+double cross_entropy(double *t, double* x, int size)
+{
+	double sum = 0;
+
+	for (int i = 0; i < size; i++)
+	{
+		sum += t[i] * log(x[i]) + (1 - t[i]) * log(1 - x[i]); // add an epsilon value
+	}
+
+	return -sum;
+}
 
 int main(void)
 {
@@ -13,59 +25,48 @@ int main(void)
 	testImage.read();
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read();
-	int image_size = inputImage.nCol*inputImage.nRow;
-	Layer::learning_rate = 0.1;
-	Layer layer1(inputImage.images[0], image_size, 256);
-	Layer layer1_1(layer1.x, 256, 256);
-	Layer layer2(layer1_1.x, 256, 10);
-	for (int i = 0; i < 600; i++)
+	
+	LayerBase inputLayer = LayerBase::CreateInputLayerBase(
+		inputImage.images[0], inputImage.getImageSize());
+
+	LayerBase layer1(&inputLayer, 50);
+	LayerBase layer2(&layer1, 10);
+	for (int i = 0; i < 60000; i++)
 	{
-		while(true)
-		{
-			layer1.updateInput(inputImage.images[i]);
-			layer1.forwardPropagation(Layer::Activation::Sigmoid);
-			layer1_1.forwardPropagation(Layer::Activation::Sigmoid);
-			layer2.forwardPropagation(Layer::Activation::Softmax);
+		inputLayer.updateInput(inputImage.images[i]);
+		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
-			// J
-			double j = cross_entropy(inputLabel.ans[i], layer2.x, inputLabel.nCategory);
-			if (i % 10 == 0)
-				cout << i << " cross entropy: " << j << endl;
-			
-			if (j < 0.01)
-				break;
+		double j = cross_entropy(inputLabel.ans[i], layer2.getOutput(), layer2.nNeuron);
+		cout << i << " entropy " << j << endl;
 
-			// Back
-			layer2.backPropagation(0, Layer::Activation::Softmax, inputLabel.ans[i]);
-			layer1_1.backPropagation(layer2.dJ.dx_lower, Layer::Activation::Sigmoid);
-			layer1.backPropagation(layer1_1.dJ.dx_lower, Layer::Activation::Sigmoid, 0, true);
-		}
+		layer2.backPropagation(LayerBase::Activation::Softmax, inputLabel.ans[i]);
+		layer1.backPropagation(LayerBase::Activation::Sigmoid);
 	}
 
 	double cnt = 0;
-	for (int i = 0; i < 100; i++)
+	for (int i = 0; i < 1000; i++)
 	{
-		layer1.updateInput(inputImage.images[i]);
-		layer1.forwardPropagation(Layer::Activation::Sigmoid);
-		layer1_1.forwardPropagation(Layer::Activation::Sigmoid);
-		layer2.forwardPropagation(Layer::Activation::Softmax);
+		inputLayer.updateInput(testImage.images[i]);
+		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
 		double pred_max = 0;
 		int pred_max_idx = 0;
+		double *pred_x = layer2.getOutput();
 		for (int ii = 0; ii < inputLabel.nCategory; ii++)
 		{
-			if (layer2.x[ii] > pred_max)
+			if (pred_x[ii] > pred_max)
 			{
-				pred_max = layer2.x[ii];
+				pred_max = pred_x[ii];
 				pred_max_idx = ii;
 			}
 		}
 
-		if (inputLabel.ans[i][pred_max_idx] != 0)
+		if (testLabel.ans[i][pred_max_idx] != 0)
 			cnt += 1.0;
 	}
 	cout << "count " << cnt;
 
-	getchar();
 	return 0;
 }

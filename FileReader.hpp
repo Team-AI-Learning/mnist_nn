@@ -66,6 +66,8 @@ public:
 #endif
 	}
 
+	unsigned int getImageSize() { return nRow*nCol; }
+
 	void printImage(int idx)
 	{
 		double*& img = images[idx];
@@ -73,13 +75,11 @@ public:
 		{
 			for (int c = 0; c < nCol; c++)
 			{
-				int dot = (int)(img[r*nRow + c] * 10);
+				int dot = (int)(img[r*nCol + c] * 10);
 				cout << dot << " ";
 			}
 			cout << endl;
 		}
-		cout << "press enter.";
-		getchar();
 	}
 
 protected:
@@ -92,7 +92,7 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages); nImages = 10000;
+		nImages = ReverseInt(nImages);
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
@@ -100,7 +100,6 @@ protected:
 			nDummy, nImages, nRow, nCol);
 #endif
 	}
-
 	// Read an image
 	void read_pixels()
 	{
@@ -114,12 +113,11 @@ protected:
 			{
 				unsigned char buff = 0;
 				in.read((char*)&buff, Byte1);
-				images[i][(nRow*r) + c] = (double)buff / 255.0;
+				images[i][(r*nCol) + c] = (double)buff / 255.0;
 			}
 		}
 	}
 };
-
 
 class LabelReader
 {
@@ -179,6 +177,19 @@ public:
 		printf(string(TAG).append(" dummy %d label %d\n").c_str(), nDummy, nLabels);
 		printf(string(TAG).append(" read() end\n").c_str());
 #endif
+	}
+
+	void printLabel(int idx, bool answerVector = false)
+	{
+		cout << "label " << label[idx] << endl;
+		if (answerVector)
+		{
+			cout << "ans vector ";
+			for (int i = 0; i < nCategory; i++)
+				cout << ans[idx][i] << " ";
+			cout << endl;
+		}
+			
 	}
 protected:
 	void generateAnswerVector()
