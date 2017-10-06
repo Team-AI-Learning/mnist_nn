@@ -5,6 +5,7 @@
 
 #include<iostream>
 #include<fstream>
+#include"Tensor.hpp"
 using namespace std;
 
 static const int Byte4 = 4;
@@ -29,7 +30,8 @@ public:
 	int nImages; // 60000
 	int nRow; // 28
 	int nCol; // 28
-	double **images;
+	//double **images;
+	Tensor *images; // [numImages][row][col]
 	ifstream in;
 public:
 	ImageReader(string fileName) :
@@ -39,19 +41,17 @@ public:
 	}
 	~ImageReader() 
 	{
-		in.close();
-		for (int i = 0; i < nImages; i++)
+		if (images != 0)
 		{
-			delete[] images[i];
-			images[i] = 0;
+			delete images;
+			images = 0;
 		}
-		delete[] images;
-		images = 0;
+		in.close();
 	}
 
 	void read()
 	{
-		if (!in.is_open() || images != 0)
+		if (!in.is_open())
 		{
 			cout << "image read fail.\n";
 			return;
@@ -70,12 +70,12 @@ public:
 
 	void printImage(int idx)
 	{
-		double*& img = images[idx];
+		double***& img = (*images)[idx];
 		for (int r = 0; r < nRow; r++)
 		{
 			for (int c = 0; c < nCol; c++)
 			{
-				int dot = (int)(img[r*nCol + c] * 10);
+				int dot = (int)(img[r][c][0] * 10);
 				cout << dot << " ";
 			}
 			cout << endl;
@@ -92,28 +92,25 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages);
+		nImages = ReverseInt(nImages); /*nImages = 10;*/
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
 		printf(string(TAG).append(" dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
 			nDummy, nImages, nRow, nCol);
 #endif
+		images = new Tensor(nImages, nRow, nCol);
 	}
 	// Read an image
 	void read_pixels()
 	{
-		images = new double*[nImages];
-		for (int i = 0; i < nImages; i++)
-			images[i] = new double[nRow*nCol];
-
 		for (int i = 0; i < nImages; ++i)
 		{
 			for (int r = 0; r < nRow; ++r) for (int c = 0; c < nCol; ++c)
 			{
 				unsigned char buff = 0;
 				in.read((char*)&buff, Byte1);
-				images[i][(r*nCol) + c] = (double)buff / 255.0;
+				(*images)[i][r][c][0] = (double)buff / 255.0;
 			}
 		}
 	}
@@ -125,37 +122,39 @@ public:
 	const string TAG = "[LabelReader]";
 	int nDummy;
 	int nLabels; // 60000
-	double* label; // answer of the image
+	Tensor* label; // answer of the image
 	int nCategory; // 10
-	double** ans;
-
+	Tensor* onehot_label;
 	ifstream in;
+
 public:
 	LabelReader(string fileName, int n_category = 10)
-		: label(0), ans(0), nLabels(0), nCategory(n_category)
+		: label(0), nLabels(0), nCategory(n_category), onehot_label(0)
 	{
 		in.open(fileName, ios::binary);
 	}
+
 	~LabelReader()
 	{
-		in.close();
-		delete[] label;
-		label = 0;
-
-		for (int i = 0; i < nLabels; i++)
+		if (label != 0)
 		{
-			delete[] ans[i];
-			ans[i] = 0;
+			delete label;
+			label = 0;
 		}
-		delete[] ans;
-		ans = 0;
+			
+		if (onehot_label != 0)
+		{
+			delete onehot_label;
+			onehot_label = 0;
+		}
+		in.close();
 	}
 
 	void read()
 	{
-		if (!in.is_open() || label != 0)
+		if (!in.is_open())
 		{
-			cout << "read fail\n";
+			printf(string(TAG).append(" read() failed.\n").c_str());
 			return;
 		}
 #ifdef DEBUG
@@ -165,12 +164,12 @@ public:
 		in.read((char*)&nLabels, Byte4);
 		nDummy = ReverseInt(nDummy);
 		nLabels = ReverseInt(nLabels);
-		label = new double[nLabels];
+		label = new Tensor(nLabels);
 		for (int i = 0; i < nLabels; i++)
 		{
 			unsigned char buff = 0;
 			in.read((char*)&buff, Byte1);
-			label[i] = (double)buff;
+			label->array(i) = (double)buff;
 		}
 		generateAnswerVector();
 #ifdef DEBUG
@@ -181,34 +180,32 @@ public:
 
 	void printLabel(int idx, bool answerVector = false)
 	{
-		cout << "label " << label[idx] << endl;
+		cout << "label " << label->array(idx) << endl;
 		if (answerVector)
 		{
-			cout << "ans vector ";
+			cout << "onehot_label vector ";
 			for (int i = 0; i < nCategory; i++)
-				cout << ans[idx][i] << " ";
+				cout << onehot_label->array(idx,i) << " ";
 			cout << endl;
-		}
-			
+		}			
 	}
+
 protected:
 	void generateAnswerVector()
 	{
-		if (ans != 0)
+		if (onehot_label != 0)
 		{
-			cout << "cannot generate answer vector.\n";
+			printf(string(TAG).append("error! already generated!!").c_str());
 			return;
 		}
-		
-		ans = new double*[nLabels];
+		onehot_label = new Tensor(nLabels, nCategory);
+
 		for (int i = 0; i < nLabels; i++)
 		{
-			ans[i] = new double[nCategory];
-
 			for (int j = 0; j < nCategory; j++)
-				ans[i][j] = 0;
+				onehot_label->array(i,j) = 0;
 			
-			ans[i][(int)label[i]] = 1;
+			onehot_label->array(i, (int)label->array(i) ) = 1;
 		}
 	}
 };
