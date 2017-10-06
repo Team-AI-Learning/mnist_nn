@@ -1,17 +1,28 @@
 #include<iostream>
 #include"FileReader.hpp"
 #include"LayerBase.hpp"
+
+#define NUM_BATCH 1
+#define SIZE_INPUT 1
+#define DIMX_INPUT 28
+#define DIMY_INPUT 28
+
 using namespace std;
 
-double cross_entropy(Tensor& t, Tensor& x, int idx, int size)
+double cross_entropy(Tensor& t, Tensor& x, int idx, LayerInfo info)
 {
 	double sum = 0;
 
+	for (int i = 0; i < info.numNeurons; i++)
+		for (int m = 0; m < info.x_row; m++)
+			for (int n = 0; n < info.x_col; n++)
+				sum += t.array(idx, i) * log(x.array(0, i, m, n)) + (1 - t.array(idx, i)) * log(1 - x.array(0, i, m, n)); // add an epsilon value
+/*
 	for (int i = 0; i < size; i++)
 	{
 		sum += t.array(idx, i) * log(x.array(i)) + (1 - t.array(idx, i)) * log(1 - x.array(i)); // add an epsilon value
 	}
-
+*/
 	return -sum;
 }
 
@@ -27,20 +38,24 @@ int main(void)
 	testData.read();
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read();
-	int imageSize = trainData.images->J*trainData.images->K;
-	LayerBase inputLayer(imageSize);
 	
+	// Input Layer
+	LayerInfo iInputLayer = {1,28,28,0,0};
+	LayerInfo iLayer1 = { 50,1,1,28,28 };
+	LayerInfo iLayer2 = { 10,1,1,1,1 };
+
+	LayerBase inputLayer(iInputLayer);
 	inputLayer.updateInput(*trainData.images, 0);
 
-	LayerBase layer1(&inputLayer, 50);
-	LayerBase layer2(&layer1, 10);
+	LayerBase layer1(&inputLayer, iLayer1);
+	LayerBase layer2(&layer1, iLayer2);
 	for (int i = 0; i < 60000; i++)
 	{
 		inputLayer.updateInput(*trainData.images, i);
 		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
-		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2.numNeurons);
+		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2.info);
 		cout << i << " entropy " << j << endl;
 
 		layer2.backPropagation(LayerBase::Activation::Softmax, i, inputLabel.onehot_label);

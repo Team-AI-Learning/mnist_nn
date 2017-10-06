@@ -28,6 +28,7 @@ public:
 	const string TAG = "[ImageReader]";
 	int nDummy;
 	int nImages; // 60000
+	int nChannel; // 1
 	int nRow; // 28
 	int nCol; // 28
 	//double **images;
@@ -35,7 +36,7 @@ public:
 	ifstream in;
 public:
 	ImageReader(string fileName) :
-		nDummy(0), nImages(0), nRow(0), nCol(0), images(0)
+		nDummy(0), nImages(0), nChannel(1), nRow(0), nCol(0), images(0)
 	{
 		in.open(fileName, ios::binary);
 	}
@@ -99,19 +100,17 @@ protected:
 		printf(string(TAG).append(" dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
 			nDummy, nImages, nRow, nCol);
 #endif
-		images = new Tensor(nImages, nRow, nCol);
+		images = new Tensor(nImages, nChannel, nRow, nCol);
 	}
 	// Read an image
 	void read_pixels()
 	{
-		for (int i = 0; i < nImages; ++i)
+		for (int i = 0; i < nImages; ++i) for (int ch = 0; ch < nChannel; ++ch)
+		for (int r = 0; r < nRow; ++r) for (int c = 0; c < nCol; ++c)
 		{
-			for (int r = 0; r < nRow; ++r) for (int c = 0; c < nCol; ++c)
-			{
-				unsigned char buff = 0;
-				in.read((char*)&buff, Byte1);
-				(*images)[i][r][c][0] = (double)buff / 255.0;
-			}
+			unsigned char buff = 0;
+			in.read((char*)&buff, Byte1);
+			(*images)[i][ch][r][c] = (double)buff / 255.0;
 		}
 	}
 };
