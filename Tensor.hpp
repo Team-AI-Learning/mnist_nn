@@ -81,7 +81,7 @@ public:
 	void setRandom()
 	{
 		default_random_engine generator;
-		double variance = 1.0 / (double)J*K*L;
+		double variance = 1.0 / ((double)J*K*L);
 		assert(J != 0 && K != 0 && L != 0);
 		normal_distribution<double> distribution(0.0, variance);
 
