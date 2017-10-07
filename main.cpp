@@ -16,13 +16,11 @@ double cross_entropy(Tensor& t, Tensor& x, int idx, LayerInfo info)
 	for (int i = 0; i < info.numNeurons; i++)
 		for (int m = 0; m < info.x_row; m++)
 			for (int n = 0; n < info.x_col; n++)
-				sum += t.array(idx, i) * log(x.array(0, i, m, n)) + (1 - t.array(idx, i)) * log(1 - x.array(0, i, m, n)); // add an epsilon value
-/*
-	for (int i = 0; i < size; i++)
-	{
-		sum += t.array(idx, i) * log(x.array(i)) + (1 - t.array(idx, i)) * log(1 - x.array(i)); // add an epsilon value
-	}
-*/
+			{
+				sum += t.array(idx, i) * log(x.array(0, i, m, n)) +
+					(1 - t.array(idx, i)) * log(1 - x.array(0, i, m, n)); // add an epsilon value
+			}
+				
 	return -sum;
 }
 
@@ -49,19 +47,17 @@ int main(void)
 
 	LayerBase layer1(&inputLayer, iLayer1);
 	LayerBase layer2(&layer1, iLayer2);
-	for (int i = 0; i < 5000; i++)
+	for (int i = 0; i < 60000; i++)
 	{
-		//inputLabel.printLabel(i, 1);
-		//trainData.printImage(i); getchar();
 		inputLayer.updateInput(*trainData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer1.forwardPropagation(LayerBase::Activation::ReLU);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
 		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2.info);
 		cout << i << " entropy " << j << endl;
 
 		layer2.backPropagation(LayerBase::Activation::Softmax, i, inputLabel.onehot_label);
-		layer1.backPropagation(LayerBase::Activation::Sigmoid);
+		layer1.backPropagation(LayerBase::Activation::ReLU);
 	}
 
 	int num_test = 1000;
@@ -69,7 +65,7 @@ int main(void)
 	for (int i = 0; i < num_test; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
+		layer1.forwardPropagation(LayerBase::Activation::ReLU);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
 
 		double pred_max = 0;
@@ -88,8 +84,6 @@ int main(void)
 		if (testLabel.onehot_label->array(i,pred_max_idx) == 1)
 			cnt += 1.0;
 	}
-	printf("layer %x\n", &layer2);
-	printf("layer input %x\n", &inputLayer);
 	cout << "prediction rate: " << (double)cnt / (double)num_test << endl;
 
 	return 0;

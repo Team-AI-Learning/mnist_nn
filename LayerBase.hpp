@@ -33,7 +33,7 @@ static void softmax(Tensor& const z, Tensor& out_x, LayerInfo info)
 {
 	for (int b = 0; b < minibatch_size; b++)
 	{
-		double z_max = 0;
+		double z_max = 0; // -INF
 		for (int i = 0; i < info.numNeurons; i++)
 			for (int m = 0; m < info.x_row; m++)
 				for (int n = 0; n < info.x_col; n++)
@@ -100,10 +100,10 @@ protected:
 		~DJ()
 		{
 			if (!allocated) return;
-			delete[] dx;
-			delete[] dz;
-			delete[] dw;
-			delete[] db;
+			delete dx;
+			delete dz;
+			delete dw;
+			delete db;
 			dx = 0;
 			dz = 0;
 			dw = 0;
@@ -159,7 +159,7 @@ public:
 				for (int m = 0; m < info.x_row; m++)
 					for (int n = 0; n < info.x_col; n++)
 					{
-						for (int j = 0; j < inputLayer->info.numNeurons; j++)
+						for (int j = 0; j < in.info.numNeurons; j++)
 							for (int k = 0; k < info.w_row; k++)
 								for (int l = 0; l < info.w_col; l++)
 									z.array(bb, i, m, n) += w.array(i, j, k, l) * in._x->array(bb, j, k, l);
@@ -248,14 +248,6 @@ public:
 										in.dJ.dx->array(bb, j, k, l) += dJ.dz->array(bb, i, m, n) * w.array(i, j, k, l);
 						}
 			}
-			/*
-			for (int j = 0; j < in.numNeurons; j++)
-			{
-				in.dJ.dx[j] = 0;
-				for (int i = 0; i < numNeurons; i++)
-					in.dJ.dx[j] += dJ.dz[i] * w.array(i,j);
-			}
-			*/
 		}
 		updateWeightBias();
 	}
@@ -286,21 +278,6 @@ public:
 							w.array(i, j, k, l) -= learning_rate * dJ.dw->array(i, j, k, l);
 						}
 		}
-
-	/*
-
-		for (int i = 0; i < numNeurons; i++)
-		{
-			dJ.db[i] = dJ.dz[i];
-			b.array(i) -= learning_rate * dJ.db[i];
-			for (int j = 0; j < in.numNeurons; j++)
-			{
-				dJ.dw[i * in.numNeurons + j] = dJ.dz[i] * in._x->array(j);
-				w.array(i,j) -= learning_rate * dJ.dw[i * in.numNeurons + j];
-			}
-		}
-	*/
-
 	}
 
 	Tensor& getOutput()	{ return *_x; }
@@ -308,13 +285,13 @@ public:
 	// InputLayer
 	void updateInput(Tensor& input, int idx)
 	{
-		for (int b = 0; b < minibatch_size; b++) // check with idx
+		for (int bb = 0; bb < minibatch_size; bb++) // check with idx
 		for (int ch = 0; ch < input.J; ch++)
 		for (int k = 0; k < input.K; k++)
 		{
 			for (int l = 0; l < input.L; l++)
 			{
-				_x->array(b, ch, k, l) = input.array(idx, ch, k, l);
+				_x->array(bb, ch, k, l) = input.array(idx, ch, k, l);
 			}
 		}
 	}

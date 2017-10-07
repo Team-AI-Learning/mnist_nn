@@ -32,7 +32,7 @@ public:
 	int nRow; // 28
 	int nCol; // 28
 	//double **images;
-	Tensor *images; // [numImages][row][col]
+	Tensor *images;
 	ifstream in;
 public:
 	ImageReader(string fileName) :
@@ -99,7 +99,7 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages); nImages = 5000;
+		nImages = ReverseInt(nImages); nImages = 1000;
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
