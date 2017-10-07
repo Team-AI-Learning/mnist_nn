@@ -148,44 +148,48 @@ public:
 	{
 		LayerBase& in = (*inputLayer);
 		// Calculate z values
-		for (int b = 0; b < minibatch_size; b++)
+		for (int bb = 0; bb < minibatch_size; bb++)
 			for (int i = 0; i < info.numNeurons; i++)
 				for (int m = 0; m < info.x_row; m++)
 					for (int n = 0; n < info.x_col; n++)
-						z.array(b, i, m, n) = 0;
+						z.array(bb, i, m, n) = 0;
 
-		for (int b = 0; b < minibatch_size; b++)
+		for (int bb = 0; bb < minibatch_size; bb++)
 			for (int i = 0; i < info.numNeurons; i++)
 				for (int m = 0; m < info.x_row; m++)
 					for (int n = 0; n < info.x_col; n++)
+					{
 						for (int j = 0; j < inputLayer->info.numNeurons; j++)
 							for (int k = 0; k < info.w_row; k++)
 								for (int l = 0; l < info.w_col; l++)
-									z.array(b, i, m, n) += w.array(i, j, k, l) * in._x->array(b, j, k, l);
+									z.array(bb, i, m, n) += w.array(i, j, k, l) * in._x->array(bb, j, k, l);
+
+						z.array(bb, i, m, n) += b.array(bb, i, m, n);
+					}
 
 		// Update x values
 		switch (act)
 		{
 		case Identity:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							_x->array(b, i, m, n) = z.array(b, i, m, n);
+							_x->array(bb, i, m, n) = z.array(bb, i, m, n);
 			break;
 		case ReLU:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							_x->array(b, i, m, n) = max(z.array(b, i, m, n), 0);
+							_x->array(bb, i, m, n) = max(z.array(bb, i, m, n), 0);
 			break;
 		case Sigmoid:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							sigmoid(z.array(b, i, m, n), _x->array(b, i, m, n));
+							sigmoid(z.array(bb, i, m, n), _x->array(bb, i, m, n));
 			break;
 		case Softmax:
 			softmax(z, *_x, info);
@@ -199,49 +203,49 @@ public:
 		switch (act)
 		{
 		case Identity:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							dJ.dz->array(b, i, m, n) = dJ.dx->array(b, i, m, n);
+							dJ.dz->array(bb, i, m, n) = dJ.dx->array(bb, i, m, n);
 			break;
 		case ReLU:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							dJ.dz->array(b, i, m, n) = dJ.dx->array(b, i, m, n) * ((_x->array(b, i, m, n) > 0) ? 1 : 0);
+							dJ.dz->array(bb, i, m, n) = dJ.dx->array(bb, i, m, n) * ((_x->array(bb, i, m, n) > 0) ? 1 : 0);
 			break;
 		case Sigmoid:
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							dJ.dz->array(b, i, m, n) = dJ.dx->array(b, i, m, n) * _x->array(b, i, m, n) * (1 - _x->array(b, i, m, n));
+							dJ.dz->array(bb, i, m, n) = dJ.dx->array(bb, i, m, n) * _x->array(bb, i, m, n) * (1 - _x->array(bb, i, m, n));
 			break;
 		case Softmax: // Cross entropy
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 				for (int i = 0; i < info.numNeurons; i++)
 					for (int m = 0; m < info.x_row; m++)
 						for (int n = 0; n < info.x_col; n++)
-							dJ.dz->array(b, i, m, n) = dJ.dx->array(b, i, m, n) - ans->array(idx,i); // ans
+							dJ.dz->array(bb, i, m, n) = _x->array(bb, i, m, n) - ans->array(idx,i); // ans
 			break;
 		}
 
 		if (!in.isInputLayer)
 		{
-			for (int b = 0; b < minibatch_size; b++)
+			for (int bb = 0; bb < minibatch_size; bb++)
 			{
 				for (int j = 0; j < in.info.numNeurons; j++)
 					for (int k = 0; k < info.w_row; k++)
 						for (int l = 0; l < info.w_col; l++)
 						{
-							in.dJ.dx->array(b, j, k, l) = 0;
-
+							in.dJ.dx->array(bb, j, k, l) = 0;
+							// check
 							for (int i = 0; i < info.numNeurons; i++)
 								for (int m = 0; m < info.x_row; m++)
 									for (int n = 0; n < info.x_col; n++)
-										in.dJ.dx->array(b, j, k, l) += dJ.dz->array(b, i, m, n) * w.array(i, j, k, l);
+										in.dJ.dx->array(bb, j, k, l) += dJ.dz->array(bb, i, m, n) * w.array(i, j, k, l);
 						}
 			}
 			/*
@@ -270,20 +274,17 @@ public:
 					}
 			// 배치를 고려하면 누적해서 나중에 한번에 파라미터 업데이트 해야 함. 나중에 고쳐야 함.
 			for (int i = 0; i < info.numNeurons; i++)
-				for (int j = 0; j < inputLayer->info.numNeurons; j++)
+				for (int j = 0; j < in.info.numNeurons; j++)
 					for (int k = 0; k < info.w_row; k++)
 						for (int l = 0; l < info.w_col; l++)
 						{
+							dJ.dw->array(i, j, k, l) = 0;
 							for (int m = 0; m < info.x_row; m++)
 								for (int n = 0; n < info.x_col; n++)
-									dJ.dw->array(i, j, k, l) = dJ.dz->array(bb, i, m, n) * in._x->array(bb, j, k, l);
-						}
+									dJ.dw->array(i, j, k, l) += dJ.dz->array(bb, i, m, n) * in._x->array(bb, j, k, l);
 
-			for (int i = 0; i < info.numNeurons; i++)
-				for (int j = 0; j < inputLayer->info.numNeurons; j++)
-					for (int k = 0; k < info.w_row; k++)
-						for (int l = 0; l < info.w_col; l++)
 							w.array(i, j, k, l) -= learning_rate * dJ.dw->array(i, j, k, l);
+						}
 		}
 
 	/*

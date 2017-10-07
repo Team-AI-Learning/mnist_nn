@@ -49,8 +49,10 @@ int main(void)
 
 	LayerBase layer1(&inputLayer, iLayer1);
 	LayerBase layer2(&layer1, iLayer2);
-	for (int i = 0; i < 60000; i++)
+	for (int i = 0; i < 5000; i++)
 	{
+		//inputLabel.printLabel(i, 1);
+		//trainData.printImage(i); getchar();
 		inputLayer.updateInput(*trainData.images, i);
 		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
 		layer2.forwardPropagation(LayerBase::Activation::Softmax);
@@ -62,8 +64,9 @@ int main(void)
 		layer1.backPropagation(LayerBase::Activation::Sigmoid);
 	}
 
+	int num_test = 1000;
 	double cnt = 0;
-	for (int i = 0; i < 1000; i++)
+	for (int i = 0; i < num_test; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
 		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
@@ -74,20 +77,20 @@ int main(void)
 		Tensor& pred_x = layer2.getOutput();
 		for (int ii = 0; ii < inputLabel.nCategory; ii++)
 		{
-			if (pred_x.array(ii) > pred_max)
+			if (pred_x.array(0, ii, 0, 0) > pred_max)
 			{
-				pred_max = pred_x.array(ii);
+				pred_max = pred_x.array(0, ii, 0, 0);
 				pred_max_idx = ii;
 			}
 		}
 
-		double tmp = testLabel.onehot_label->array(i, pred_max_idx);
-		if (testLabel.onehot_label->array(i,pred_max_idx) != 0)
+		//double tmp = testLabel.onehot_label->array(i, pred_max_idx);
+		if (testLabel.onehot_label->array(i,pred_max_idx) == 1)
 			cnt += 1.0;
 	}
 	printf("layer %x\n", &layer2);
 	printf("layer input %x\n", &inputLayer);
-	cout << "count " << cnt;
+	cout << "prediction rate: " << (double)cnt / (double)num_test << endl;
 
 	return 0;
 }

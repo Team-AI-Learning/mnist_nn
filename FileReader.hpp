@@ -72,15 +72,21 @@ public:
 	void printImage(int idx)
 	{
 		double***& img = (*images)[idx];
-		for (int r = 0; r < nRow; r++)
+		for (int ch = 0; ch < nChannel; ++ch)
 		{
-			for (int c = 0; c < nCol; c++)
+			cout << "ch: " << ch << endl;
+			for (int r = 0; r < nRow; r++)
 			{
-				int dot = (int)(img[r][c][0] * 10);
-				cout << dot << " ";
+				for (int c = 0; c < nCol; c++)
+				{
+					int dot = (int)(img[ch][r][c] * 10);
+					cout << dot << " ";
+				}
+				cout << endl;
 			}
 			cout << endl;
 		}
+
 	}
 
 protected:
@@ -93,7 +99,7 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages); /*nImages = 10;*/
+		nImages = ReverseInt(nImages); nImages = 5000;
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
