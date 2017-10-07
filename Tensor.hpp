@@ -79,7 +79,7 @@ public:
 	void setRandom()
 	{
 		default_random_engine generator;
-		double variance = 1.0 / (double)J*K*L;
+		double variance = 1.0 / ((double)J*K*L);
 		normal_distribution<double> distribution(0.0, variance);
 
 		for (int i = 0; i < I; i++) for (int j = 0; j < J; j++)
