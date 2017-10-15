@@ -7,7 +7,10 @@
 #include<stdlib.h>
 using namespace std;
 
-// 정의 : 다차원 배열을 쉽게 다루기 위한 클래스
+// TODO:
+// add dimension or Format info var
+// operator= for shallow/deep copying
+
 #define UINT unsigned int
 class Tensor
 {
@@ -32,7 +35,7 @@ public:
 	};
 
 	double ****arr;
-	unsigned int size;
+	UINT size;
 	
 public:
 	// [row][col][filter row][filter col]
@@ -44,7 +47,7 @@ public:
 		size = I*J*K*L;
 		allocated = true;
 	}
-	// 복사생성자는?
+
 	explicit Tensor()
 	{
 		arr = 0; 
@@ -64,16 +67,15 @@ public:
 		}
 	}
 
-	double***& operator[](unsigned int x)
+	double***& operator[](UINT x)
 	{
 		return arr[x];
 	}
 
-	double& array(unsigned int i, unsigned int j = 0, unsigned int k = 0, unsigned int l = 0)
+	double& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0)
 	{
 		return arr[i][j][k][l];
 	}
-	// operator=
 public:
 
 	void setRandom()
@@ -82,42 +84,18 @@ public:
 		double variance = 1.0 / ((double)J*K*L);
 		normal_distribution<double> distribution(0.0, variance);
 
-		for (int i = 0; i < I; i++) for (int j = 0; j < J; j++)
-		for (int k = 0; k < K; k++) for (int l = 0; l < L; l++)
+		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
+		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
 		{
 			arr[i][j][k][l] = distribution(generator);
 		}
 	}
 protected:
-	/*
 	double ****alloc(int max_i, int max_j, int max_k, int max_l) {
-		double *_l = (double*)malloc(max_i*max_j*max_k*max_l * sizeof(*_l)); // 실제 저장할 메모리
-		double **_k = (double**)malloc(max_i*max_j*max_k * sizeof(**_k)); // 
-		double ***_j = (double***)malloc(max_i*max_j * sizeof(***_j));
-		double ****_i = (double****)malloc(max_i * sizeof(****_i));
-		//printf("%x\n%x\n%x\n%x\n", _l, _k, _j, _i);
-		for (int i = 0; i < max_i; i++) {
-			_i[i] = _j;
-			_j += max_j;
-			for (int j = 0; j < max_j; j++) {
-				_i[i][j] = _k;
-				_k += max_k;
-				for (int k = 0; k < max_k; k++) {
-					_i[i][j][k] = _l;
-					_l += max_l;
-				}
-			}
-		}
-		return _i;
-	}
-	*/
-
-	double ****alloc(int max_i, int max_j, int max_k, int max_l) {
-		double *_l = new double[max_i*max_j*max_k*max_l]; // 실제 저장할 메모리
-		double **_k = new double*[max_i*max_j*max_k]; // 
+		double *_l = new double[max_i*max_j*max_k*max_l];
+		double **_k = new double*[max_i*max_j*max_k];
 		double ***_j = new double**[max_i*max_j];
 		double ****_i = new double***[max_i];
-		//printf("%x\n%x\n%x\n%x\n", _l, _k, _j, _i);
 		for (int i = 0; i < max_i; i++) {
 			_i[i] = _j;
 			_j += max_j;
@@ -132,7 +110,6 @@ protected:
 		}
 		return _i;
 	}
-
 };
 
 #endif

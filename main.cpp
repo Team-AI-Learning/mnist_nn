@@ -1,58 +1,71 @@
 #include<iostream>
 #include"FileReader.hpp"
-#include"LayerBase.hpp"
+#include"Layer.h"
 using namespace std;
 
-double cross_entropy(Tensor& t, Tensor& x, int idx, int size)
+// Simple C++ Project for MNIST NN.
+
+// TODO: CNN
+// 1. Batch applications
+// 2. Batch-normalization (w/ or w/o some parameters)
+// 3. Additional initialization/optimization schemes
+// 4. Other activations
+
+// TODO: SW architecture
+// 1. Application of Strategy on Activation & Loss Functions
+// 2. Tensor Architecture(Tensor multiplication, TensorInfo) & Interface (Element product, operator*) update
+// 3. LayerInfo structure
+// 4. FileReader read(maxRead);
+
+static inline double cross_entropy(Tensor& t, Tensor& x, int idx, int size)
 {
 	double sum = 0;
 
 	for (int i = 0; i < size; i++)
 	{
-		sum += t.array(idx, i) * log(x.array(i)) + (1 - t.array(idx, i)) * log(1 - x.array(i)); // add an epsilon value
+		sum += t.array(idx, i) * log(x.array(i)) + 
+			(1 - t.array(idx, i)) * log(1 - x.array(i)); // add an epsilon value
 	}
 
 	return -sum;
 }
+#define L1_NUM_NEURONS 50
+#define L2_NUM_NEURONS 10
 
 int main(void)
 {
-	cout << "CNN\n";
+	Layer::learning_rate = 0.01;
 	ImageReader trainData("train-images.idx3-ubyte");
 	trainData.read();
-	
 	LabelReader inputLabel("train-labels.idx1-ubyte");
 	inputLabel.read();
 	ImageReader testData("t10k-images.idx3-ubyte");
 	testData.read();
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read();
-	int imageSize = trainData.images->J*trainData.images->K;
-	LayerBase inputLayer(imageSize);
-	
-	inputLayer.updateInput(*trainData.images, 0);
 
-	LayerBase layer1(&inputLayer, 50);
-	LayerBase layer2(&layer1, 10);
-	for (int i = 0; i < 60000; i++)
+	Layer inputLayer(trainData.getImageSize());
+	Layer layer1(&inputLayer, L1_NUM_NEURONS);
+	Layer layer2(&layer1, L2_NUM_NEURONS);
+	for (int i = 0; i < trainData.nImages; i++)
 	{
 		inputLayer.updateInput(*trainData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
-		layer2.forwardPropagation(LayerBase::Activation::Softmax);
+		layer1.forwardPropagation(Layer::Activation::Sigmoid);
+		layer2.forwardPropagation(Layer::Activation::Softmax);
 
-		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2.numNeurons);
+		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, L2_NUM_NEURONS);
 		cout << i << " entropy " << j << endl;
 
-		layer2.backPropagation(LayerBase::Activation::Softmax, i, inputLabel.onehot_label);
-		layer1.backPropagation(LayerBase::Activation::Sigmoid);
+		layer2.backPropagation(inputLabel.onehot_label, i);
+		layer1.backPropagation();
 	}
 
-	double cnt = 0;
-	for (int i = 0; i < 1000; i++)
+	int cnt = 0;
+	for (int i = 0; i < testData.nImages; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::Sigmoid);
-		layer2.forwardPropagation(LayerBase::Activation::Softmax);
+		layer1.forwardPropagation(Layer::Activation::Sigmoid);
+		layer2.forwardPropagation(Layer::Activation::Softmax);
 
 		double pred_max = 0;
 		int pred_max_idx = 0;
@@ -66,13 +79,13 @@ int main(void)
 			}
 		}
 
-		double tmp = testLabel.onehot_label->array(i, pred_max_idx);
 		if (testLabel.onehot_label->array(i,pred_max_idx) != 0)
-			cnt += 1.0;
+		{ 
+			cout << i << ": matched (" << cnt << ")\n";
+			cnt++;
+		}
 	}
-	printf("layer %x\n", &layer2);
-	printf("layer input %x\n", &inputLayer);
-	cout << "count " << cnt;
+	cout << "Total Test: " << testData.nImages << ", count " << cnt << endl;
 
 	return 0;
 }

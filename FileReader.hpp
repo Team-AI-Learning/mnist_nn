@@ -30,12 +30,13 @@ public:
 	int nImages; // 60000
 	int nRow; // 28
 	int nCol; // 28
-	//double **images;
 	Tensor *images; // [numImages][row][col]
 	ifstream in;
+private:
+	int maxRead;
 public:
 	ImageReader(string fileName) :
-		nDummy(0), nImages(0), nRow(0), nCol(0), images(0)
+		nDummy(0), nImages(0), nRow(0), nCol(0), images(0), maxRead(0)
 	{
 		in.open(fileName, ios::binary);
 	}
@@ -49,8 +50,10 @@ public:
 		in.close();
 	}
 
-	void read()
+	// parameter maxRead is for Debugging
+	void read(int _maxRead = 0)
 	{
+		maxRead = _maxRead;
 		if (!in.is_open())
 		{
 			cout << "image read fail.\n";
@@ -92,7 +95,8 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages); /*nImages = 10;*/
+		nImages = ReverseInt(nImages);
+		if (maxRead != 0) nImages = maxRead;
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
@@ -150,7 +154,7 @@ public:
 		in.close();
 	}
 
-	void read()
+	void read(int _maxRead = 0)
 	{
 		if (!in.is_open())
 		{
@@ -163,7 +167,8 @@ public:
 		in.read((char*)&nDummy, Byte4); // dummy
 		in.read((char*)&nLabels, Byte4);
 		nDummy = ReverseInt(nDummy);
-		nLabels = ReverseInt(nLabels);
+		nLabels = ReverseInt(nLabels); 
+		if (_maxRead != 0) nLabels = _maxRead;
 		label = new Tensor(nLabels);
 		for (int i = 0; i < nLabels; i++)
 		{
