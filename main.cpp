@@ -1,90 +1,91 @@
 #include<iostream>
 #include"FileReader.hpp"
-#include"LayerBase.hpp"
-
-#define NUM_BATCH 1
-#define SIZE_INPUT 1
-#define DIMX_INPUT 28
-#define DIMY_INPUT 28
-
+#include"Layer.h"
 using namespace std;
 
-double cross_entropy(Tensor& t, Tensor& x, int idx, LayerInfo info)
+// Simple C++ Project for MNIST NN.
+
+// TODO: CNN
+// 1. Batch applications
+// 2. Batch-normalization (w/ or w/o some parameters)
+// 3. Additional initialization/optimization schemes
+// 4. Other activations
+
+// TODO: SW architecture
+// 1. Application of Strategy on Activation & Loss Functions
+// 2. Tensor Architecture(Tensor multiplication, TensorInfo) & Interface (Element product, operator*) update
+// 3. LayerInfo structure
+// 4. FileReader read(maxRead);
+
+static inline double cross_entropy(Tensor& t, Tensor& x, int idx, int size)
 {
 	double sum = 0;
 
-	for (int i = 0; i < info.numNeurons; i++)
-		for (int m = 0; m < info.x_row; m++)
-			for (int n = 0; n < info.x_col; n++)
-			{
-				sum += t.array(idx, i) * log(x.array(0, i, m, n)) +
-					(1 - t.array(idx, i)) * log(1 - x.array(0, i, m, n)); // add an epsilon value
-			}
-				
+	for (int i = 0; i < size; i++)
+	{
+		sum += t.array(idx, i) * log(x.array(i)) + 
+			(1 - t.array(idx, i)) * log(1 - x.array(i)); // add an epsilon value
+	}
+
 	return -sum;
 }
+#define L1_NUM_NEURONS 50
+#define L2_NUM_NEURONS 10
 
 int main(void)
 {
-	cout << "CNN\n";
+	Layer::learning_rate = 0.01;
 	ImageReader trainData("train-images.idx3-ubyte");
 	trainData.read();
-	
 	LabelReader inputLabel("train-labels.idx1-ubyte");
 	inputLabel.read();
 	ImageReader testData("t10k-images.idx3-ubyte");
 	testData.read();
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read();
-	
-	// Input Layer
-	LayerInfo iInputLayer = {1,28,28,0,0};
-	LayerInfo iLayer1 = { 50,1,1,28,28 };
-	LayerInfo iLayer2 = { 10,1,1,1,1 };
 
-	LayerBase inputLayer(iInputLayer);
-	inputLayer.updateInput(*trainData.images, 0);
-
-	LayerBase layer1(&inputLayer, iLayer1);
-	LayerBase layer2(&layer1, iLayer2);
-	for (int i = 0; i < 60000; i++)
+	Layer inputLayer(trainData.getImageSize());
+	Layer layer1(&inputLayer, L1_NUM_NEURONS);
+	Layer layer2(&layer1, L2_NUM_NEURONS);
+	for (int i = 0; i < trainData.nImages; i++)
 	{
 		inputLayer.updateInput(*trainData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::ReLU);
-		layer2.forwardPropagation(LayerBase::Activation::Softmax);
+		layer1.forwardPropagation(Layer::Activation::Sigmoid);
+		layer2.forwardPropagation(Layer::Activation::Softmax);
 
-		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2.info);
+		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, L2_NUM_NEURONS);
 		cout << i << " entropy " << j << endl;
 
-		layer2.backPropagation(LayerBase::Activation::Softmax, i, inputLabel.onehot_label);
-		layer1.backPropagation(LayerBase::Activation::ReLU);
+		layer2.backPropagation(inputLabel.onehot_label, i);
+		layer1.backPropagation();
 	}
 
-	int num_test = 1000;
-	double cnt = 0;
-	for (int i = 0; i < num_test; i++)
+	int cnt = 0;
+	for (int i = 0; i < testData.nImages; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
-		layer1.forwardPropagation(LayerBase::Activation::ReLU);
-		layer2.forwardPropagation(LayerBase::Activation::Softmax);
+		layer1.forwardPropagation(Layer::Activation::Sigmoid);
+		layer2.forwardPropagation(Layer::Activation::Softmax);
 
 		double pred_max = 0;
 		int pred_max_idx = 0;
 		Tensor& pred_x = layer2.getOutput();
 		for (int ii = 0; ii < inputLabel.nCategory; ii++)
 		{
-			if (pred_x.array(0, ii, 0, 0) > pred_max)
+			if (pred_x.array(ii) > pred_max)
 			{
-				pred_max = pred_x.array(0, ii, 0, 0);
+				pred_max = pred_x.array(ii);
 				pred_max_idx = ii;
 			}
 		}
 
-		//double tmp = testLabel.onehot_label->array(i, pred_max_idx);
-		if (testLabel.onehot_label->array(i,pred_max_idx) == 1)
-			cnt += 1.0;
+		if (testLabel.onehot_label->array(i,pred_max_idx) != 0)
+		{ 
+			cout << i << ": matched (" << cnt << ")\n";
+			cnt++;
+		}
 	}
-	cout << "prediction rate: " << (double)cnt / (double)num_test << endl;
+	cout << "Total Test: " << testData.nImages << ", count " << cnt << endl;
 
 	return 0;
 }

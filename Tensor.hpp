@@ -1,16 +1,18 @@
-#ifndef __FILTER__
-#define __FILTER__
-
+#ifndef __TENSOR__
+#define __TENSOR__
 #include<iostream>
 #include<math.h>
 #include<random>
 #include<time.h>
-#include<assert.h>
 #include<stdlib.h>
+
+#include"common.h"
 using namespace std;
 
-// 정의 : 다차원 배열을 쉽게 다루기 위한 클래스
-#define UINT unsigned int
+// TODO:
+// add dimension or Format info var
+// operator= for shallow/deep copying
+
 class Tensor
 {
 public:
@@ -34,7 +36,7 @@ public:
 	};
 
 	double ****arr;
-	unsigned int size;
+	UINT size;
 	
 public:
 	// [row][col][filter row][filter col]
@@ -46,7 +48,7 @@ public:
 		size = I*J*K*L;
 		allocated = true;
 	}
-	// 복사생성자는?
+
 	explicit Tensor()
 	{
 		arr = 0; 
@@ -66,39 +68,35 @@ public:
 		}
 	}
 
-	double***& operator[](unsigned int x)
+	double***& operator[](UINT x)
 	{
 		return arr[x];
 	}
 
-	double& array(unsigned int i, unsigned int j = 0, unsigned int k = 0, unsigned int l = 0)
+	double& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0)
 	{
 		return arr[i][j][k][l];
 	}
-	// operator=
 public:
 
 	void setRandom()
 	{
 		default_random_engine generator;
 		double variance = 1.0 / ((double)J*K*L);
-		assert(J != 0 && K != 0 && L != 0);
 		normal_distribution<double> distribution(0.0, variance);
 
-		for (int i = 0; i < I; i++) for (int j = 0; j < J; j++)
-		for (int k = 0; k < K; k++) for (int l = 0; l < L; l++)
+		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
+		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
 		{
 			arr[i][j][k][l] = distribution(generator);
 		}
 	}
 protected:
-
 	double ****alloc(int max_i, int max_j, int max_k, int max_l) {
-		double *_l = new double[max_i*max_j*max_k*max_l]; // 실제 저장할 메모리
-		double **_k = new double*[max_i*max_j*max_k]; // 
+		double *_l = new double[max_i*max_j*max_k*max_l];
+		double **_k = new double*[max_i*max_j*max_k];
 		double ***_j = new double**[max_i*max_j];
 		double ****_i = new double***[max_i];
-
 		for (int i = 0; i < max_i; i++) {
 			_i[i] = _j;
 			_j += max_j;
@@ -113,7 +111,6 @@ protected:
 		}
 		return _i;
 	}
-
 };
 
 #endif

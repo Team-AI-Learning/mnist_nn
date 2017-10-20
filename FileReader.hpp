@@ -6,6 +6,7 @@
 #include<iostream>
 #include<fstream>
 #include"Tensor.hpp"
+#include"common.h"
 using namespace std;
 
 static const int Byte4 = 4;
@@ -21,22 +22,23 @@ static int ReverseInt(int i) // byte translation
 	return((int)ch1 << 24) + ((int)ch2 << 16) + ((int)ch3 << 8) + ch4;
 }
 
-// MNIST Image & Label Reader
+// MNIST Image & Label Reader for CNN
 class ImageReader
 {
 public:
-	const string TAG = "[ImageReader]";
+	const string TAG = "[ImageReader] ";
 	int nDummy;
 	int nImages; // 60000
-	int nChannel; // 1
+	int nChannel; // 1 for mnist nn.
 	int nRow; // 28
 	int nCol; // 28
-	//double **images;
-	Tensor *images;
+	Tensor *images; // [numImages][channel][row][col]
 	ifstream in;
+private:
+	int maxRead;
 public:
 	ImageReader(string fileName) :
-		nDummy(0), nImages(0), nChannel(1), nRow(0), nCol(0), images(0)
+		nDummy(0), nImages(0), nChannel(1), nRow(0), nCol(0), images(0), maxRead(0)
 	{
 		in.open(fileName, ios::binary);
 	}
@@ -50,8 +52,10 @@ public:
 		in.close();
 	}
 
-	void read()
+	// parameter maxRead is for Debugging
+	void read(int _maxRead = 0)
 	{
+		maxRead = _maxRead;
 		if (!in.is_open())
 		{
 			cout << "image read fail.\n";
@@ -72,21 +76,16 @@ public:
 	void printImage(int idx)
 	{
 		double***& img = (*images)[idx];
-		for (int ch = 0; ch < nChannel; ++ch)
+		
+		FOR2D(ch, r, nChannel, nRow) 
 		{
-			cout << "ch: " << ch << endl;
-			for (int r = 0; r < nRow; r++)
+			FOR(c, nCol)
 			{
-				for (int c = 0; c < nCol; c++)
-				{
-					int dot = (int)(img[ch][r][c] * 10);
-					cout << dot << " ";
-				}
-				cout << endl;
+				int dot = (int)(img[ch][r][c] * 10);
+				cout << dot << " ";
 			}
 			cout << endl;
 		}
-
 	}
 
 protected:
@@ -99,7 +98,8 @@ protected:
 		in.read((char*)&nCol, Byte4);
 
 		nDummy = ReverseInt(nDummy);
-		nImages = ReverseInt(nImages); nImages = 1000;
+		nImages = ReverseInt(nImages);
+		if (maxRead != 0) nImages = maxRead;
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
@@ -111,12 +111,12 @@ protected:
 	// Read an image
 	void read_pixels()
 	{
-		for (int i = 0; i < nImages; ++i) for (int ch = 0; ch < nChannel; ++ch)
-		for (int r = 0; r < nRow; ++r) for (int c = 0; c < nCol; ++c)
+		FOR4D(img, channel, row, col, 
+			nImages, nChannel, nRow, nCol)
 		{
 			unsigned char buff = 0;
 			in.read((char*)&buff, Byte1);
-			(*images)[i][ch][r][c] = (double)buff / 255.0;
+			(*images)[img][channel][row][col] = (double)buff / 255.0;
 		}
 	}
 };
@@ -124,7 +124,7 @@ protected:
 class LabelReader
 {
 public:
-	const string TAG = "[LabelReader]";
+	const string TAG = "[LabelReader] ";
 	int nDummy;
 	int nLabels; // 60000
 	Tensor* label; // answer of the image
@@ -155,7 +155,7 @@ public:
 		in.close();
 	}
 
-	void read()
+	void read(int _maxRead = 0)
 	{
 		if (!in.is_open())
 		{
@@ -168,7 +168,8 @@ public:
 		in.read((char*)&nDummy, Byte4); // dummy
 		in.read((char*)&nLabels, Byte4);
 		nDummy = ReverseInt(nDummy);
-		nLabels = ReverseInt(nLabels);
+		nLabels = ReverseInt(nLabels); 
+		if (_maxRead != 0) nLabels = _maxRead;
 		label = new Tensor(nLabels);
 		for (int i = 0; i < nLabels; i++)
 		{
@@ -176,7 +177,7 @@ public:
 			in.read((char*)&buff, Byte1);
 			label->array(i) = (double)buff;
 		}
-		generateAnswerVector();
+		generateOnehot();
 #ifdef DEBUG
 		printf(string(TAG).append(" dummy %d label %d\n").c_str(), nDummy, nLabels);
 		printf(string(TAG).append(" read() end\n").c_str());
@@ -188,7 +189,7 @@ public:
 		cout << "label " << label->array(idx) << endl;
 		if (answerVector)
 		{
-			cout << "onehot_label vector ";
+			cout << "onehot_label ";
 			for (int i = 0; i < nCategory; i++)
 				cout << onehot_label->array(idx,i) << " ";
 			cout << endl;
@@ -196,7 +197,7 @@ public:
 	}
 
 protected:
-	void generateAnswerVector()
+	void generateOnehot()
 	{
 		if (onehot_label != 0)
 		{
@@ -205,9 +206,9 @@ protected:
 		}
 		onehot_label = new Tensor(nLabels, nCategory);
 
-		for (int i = 0; i < nLabels; i++)
+		FOR(i, nLabels)
 		{
-			for (int j = 0; j < nCategory; j++)
+			FOR(j, nCategory)
 				onehot_label->array(i,j) = 0;
 			
 			onehot_label->array(i, (int)label->array(i) ) = 1;
