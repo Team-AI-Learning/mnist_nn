@@ -110,7 +110,7 @@ void Layer::_updateWeightBias()
 			dJ.dw[i][j][wr][wc] = 0;
 			
 			FOR2D(xr, xc, info.x_row, info.x_col)
-				dJ.dw[i][j][wr][wc] = dJ.dz[batch][i][xr][xc] * in.x[batch][i][wr][wc];
+				dJ.dw[i][j][wr][wc] = dJ.dz[batch][i][xr][xc] * in.x[batch][j][wr][wc];
 			
 			w[i][j][wr][wc] -= learning_rate * dJ.dw[i][j][wr][wc];
 		}

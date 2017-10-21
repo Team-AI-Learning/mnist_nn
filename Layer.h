@@ -4,6 +4,7 @@
 #include "Tensor.hpp"
 #include "common.h"
 
+// numNeurons, x_row, x_col, w_row, w_col, minibatch_size
 struct LayerInfo
 {
 	UINT numNeurons;
@@ -12,7 +13,7 @@ struct LayerInfo
 	UINT w_row;
 	UINT w_col;
 	UINT minibatch_size;
-	//stride
+	// stride
 };
 
 struct DJ // pointers must be declared first
@@ -33,7 +34,7 @@ struct DJ // pointers must be declared first
 		:
 		_dx(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
 		_dz(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
-		_dw(new Tensor(info.numNeurons, input_numNeurons, info.w_row, info.w_col)),
+		_dw(new Tensor(info.numNeurons,		input_numNeurons, info.w_row, info.w_col)),
 		_db(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
 		dx(*_dx), dz(*_dz), dw(*_dw), db(*_db)
 	{
@@ -57,7 +58,7 @@ struct DJ // pointers must be declared first
 class Layer
 {
 public:
-	friend class DJ;
+	friend struct DJ;
 	static double learning_rate;
 public:
 	enum Activation {Identity, ReLU, Sigmoid, Softmax};
@@ -80,8 +81,9 @@ public:
 	// note that if allocation fails, mem leak would be occurred.
 	explicit Layer(Layer* _inputLayer, LayerInfo _info)
 		: inputLayer(_inputLayer), info(_info), 
-		_dJ(new DJ(inputLayer->info.numNeurons, info)), dJ(*_dJ),
-		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)), x(*_x),
+		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)), 
+		_dJ(new DJ(inputLayer->info.numNeurons, info)), 
+		x(*_x), dJ(*_dJ),
 		z(info.minibatch_size, info.numNeurons, info.x_row, info.x_col),
 		w(info.numNeurons, inputLayer->info.numNeurons, info.w_row, info.w_col),
 		b(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
@@ -91,9 +93,10 @@ public:
 
 	// Constructor for Input Layer.
 	explicit Layer(LayerInfo _info)
-		: info(_info),
-		_dJ(0), dJ(*_dJ),
-		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)), x(*_x)
+		: inputLayer(0), info(_info),
+		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_dJ(0), 
+		x(*_x), dJ(*_dJ)
 	{
 		isInputLayer = true;
 	}

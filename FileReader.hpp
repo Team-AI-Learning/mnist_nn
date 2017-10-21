@@ -27,11 +27,11 @@ class ImageReader
 {
 public:
 	const string TAG = "[ImageReader] ";
-	int nDummy;
-	int nImages; // 60000
-	int nChannel; // 1 for mnist nn.
-	int nRow; // 28
-	int nCol; // 28
+	UINT nDummy;
+	UINT nImages; // 60000
+	UINT nChannel; // 1 for mnist nn.
+	UINT nRow; // 28
+	UINT nCol; // 28
 	Tensor *images; // [numImages][channel][row][col]
 	ifstream in;
 private:
@@ -62,12 +62,12 @@ public:
 			return;
 		}
 #ifdef DEBUG
-		printf(string(TAG).append(" read() start\n").c_str());
+		printf(string(TAG).append("read() start\n").c_str());
 #endif
 		read_header();
 		read_pixels();
 #ifdef DEBUG
-		printf(string(TAG).append(" read() end\n").c_str());
+		printf(string(TAG).append("read() end\n").c_str());
 #endif
 	}
 
@@ -81,7 +81,7 @@ public:
 		{
 			FOR(c, nCol)
 			{
-				int dot = (int)(img[ch][r][c] * 10);
+				UINT dot = (UINT)(img[ch][r][c] * 10);
 				cout << dot << " ";
 			}
 			cout << endl;
@@ -103,7 +103,7 @@ protected:
 		nRow = ReverseInt(nRow);
 		nCol = ReverseInt(nCol);
 #if DEBUG
-		printf(string(TAG).append(" dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
+		printf(string(TAG).append("dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
 			nDummy, nImages, nRow, nCol);
 #endif
 		images = new Tensor(nImages, nChannel, nRow, nCol);
@@ -125,10 +125,10 @@ class LabelReader
 {
 public:
 	const string TAG = "[LabelReader] ";
-	int nDummy;
-	int nLabels; // 60000
+	UINT nDummy;
+	UINT nLabels; // 60000
 	Tensor* label; // answer of the image
-	int nCategory; // 10
+	UINT nCategory; // 10
 	Tensor* onehot_label;
 	ifstream in;
 
@@ -159,11 +159,11 @@ public:
 	{
 		if (!in.is_open())
 		{
-			printf(string(TAG).append(" read() failed.\n").c_str());
+			printf(string(TAG).append("read() failed.\n").c_str());
 			return;
 		}
 #ifdef DEBUG
-		printf(string(TAG).append(" read() start\n").c_str());
+		printf(string(TAG).append("read() start\n").c_str());
 #endif
 		in.read((char*)&nDummy, Byte4); // dummy
 		in.read((char*)&nLabels, Byte4);
@@ -171,7 +171,7 @@ public:
 		nLabels = ReverseInt(nLabels); 
 		if (_maxRead != 0) nLabels = _maxRead;
 		label = new Tensor(nLabels);
-		for (int i = 0; i < nLabels; i++)
+		for (UINT i = 0; i < nLabels; i++)
 		{
 			unsigned char buff = 0;
 			in.read((char*)&buff, Byte1);
@@ -179,18 +179,18 @@ public:
 		}
 		generateOnehot();
 #ifdef DEBUG
-		printf(string(TAG).append(" dummy %d label %d\n").c_str(), nDummy, nLabels);
-		printf(string(TAG).append(" read() end\n").c_str());
+		printf(string(TAG).append("dummy %d label %d\n").c_str(), nDummy, nLabels);
+		printf(string(TAG).append("read() end\n").c_str());
 #endif
 	}
 
-	void printLabel(int idx, bool answerVector = false)
+	void printLabel(UINT idx, bool answerVector = false)
 	{
 		cout << "label " << label->array(idx) << endl;
 		if (answerVector)
 		{
 			cout << "onehot_label ";
-			for (int i = 0; i < nCategory; i++)
+			for (UINT i = 0; i < nCategory; i++)
 				cout << onehot_label->array(idx,i) << " ";
 			cout << endl;
 		}			
@@ -211,7 +211,7 @@ protected:
 			FOR(j, nCategory)
 				onehot_label->array(i,j) = 0;
 			
-			onehot_label->array(i, (int)label->array(i) ) = 1;
+			onehot_label->array(i, (UINT)label->array(i) ) = 1;
 		}
 	}
 };
