@@ -1,6 +1,6 @@
 #include<iostream>
 #include"FileReader.hpp"
-#include"Layer.h"
+#include"ConvLayer.h"
 #include"common.h"
 using namespace std;
 
@@ -18,16 +18,23 @@ using namespace std;
 // 3. LayerInfo structure
 // 4. FileReader read(maxRead);
 
-static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo info)
+static inline double cross_entropy(Tensor& t, double****& x, UINT idx, ConvLayerInfo info)
 {
 	double sum = 0;
-
-	FOR3D(i, xr, xc, info.numNeurons, info.x_row, info.x_col)
+	FOR(i, info.numNeurons)
 	{
-		sum += t.array(idx, i) * log(x[0][i][xr][xc]) + // batch = 0
-			(1 - t.array(idx, i)) * log(1 - x[0][i][xr][xc]); // add an epsilon value
+		FOR3D(xd, xr, xc, info.x_cha, info.x_row, info.x_col)
+		{
+			sum += t.array(idx, i) * log(x[i][xd][xr][xc]) + // batch = 0
+				(1 - t.array(idx, i)) * log(1 - x[i][xd][xr][xc]); // add an epsilon value
+		}
 	}
-
+	/*
+	FOR4D(i, xd, xr, xc, info.numNeurons, info.x_cha, info.x_row, info.x_col)
+	{
+		
+	}
+	*/
 	return -sum;
 }
 #define L1_NUM_NEURONS 50
@@ -35,7 +42,7 @@ static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo inf
 
 int main(void)
 {
-	Layer::learning_rate = 0.01;
+	ConvLayer::learning_rate = 0.01;
 	ImageReader trainData("train-images.idx3-ubyte");
 	trainData.read();
 	LabelReader inputLabel("train-labels.idx1-ubyte");
@@ -45,19 +52,31 @@ int main(void)
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read();
 
-	LayerInfo inputLayerInfo= { 1, 28, 28, 0, 0, 1 };
-	LayerInfo layer1Info	= { L1_NUM_NEURONS, 1, 1, 28, 28, 1 };
-	LayerInfo layer2Info	= { L2_NUM_NEURONS, 1, 1, 1, 1, 1 };
+	ConvLayerInfo inputLayerInfo= { 
+		1, 
+		1, 28, 28,	// x 
+		0, 0, 0, 0, // w
+		0 };
+	ConvLayerInfo layer1Info	= { 
+		L1_NUM_NEURONS, 
+		1, 1, 1, 
+		1, 1, 28, 28, 
+		0 };
+	ConvLayerInfo layer2Info	= { 
+		L2_NUM_NEURONS, 
+		1, 1, 1, 
+		1, 1, 1, 1, 
+		0 };
 	
-	Layer inputLayer(inputLayerInfo);
-	Layer layer1(&inputLayer, layer1Info);
-	Layer layer2(&layer1, layer2Info);
+	ConvLayer inputLayer(inputLayerInfo);
+	ConvLayer layer1(&inputLayer, layer1Info);
+	ConvLayer layer2(&layer1, layer2Info);
 
 	for (UINT i = 0; i < trainData.nImages; i++)
 	{
 		inputLayer.updateInput(*trainData.images, i);
-		layer1.forwardPropagation(Layer::Activation::Sigmoid);
-		layer2.forwardPropagation(Layer::Activation::Softmax);
+		layer1.forwardPropagation(ConvLayer::Activation::Sigmoid);
+		layer2.forwardPropagation(ConvLayer::Activation::Softmax);
 
 		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2Info);
 		cout << i << " entropy " << j << endl;
@@ -70,23 +89,22 @@ int main(void)
 	for (UINT i = 0; i < testData.nImages; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
-		layer1.forwardPropagation(Layer::Activation::Sigmoid);
-		layer2.forwardPropagation(Layer::Activation::Softmax);
+		layer1.forwardPropagation(ConvLayer::Activation::Sigmoid);
+		layer2.forwardPropagation(ConvLayer::Activation::Softmax);
 
 		double pred_max = 0;
 		int pred_max_idx = 0;
-		Tensor& pred_x = layer2.getOutput();
+		double****& pred_x = layer2.getOutput();
 		for (UINT ca = 0; ca < inputLabel.nCategory; ca++)
 		{
-			// minibatch size 1
-			if (pred_x[0][ca][0][0] > pred_max)
+			if (pred_x[ca][0][0][0] > pred_max)
 			{
-				pred_max = pred_x[0][ca][0][0];
+				pred_max = pred_x[ca][0][0][0];
 				pred_max_idx = ca;
 			}
 		}
 
-		if (testLabel.onehot_label->array(i,pred_max_idx) != 0)
+		if (testLabel.onehot_label->array(i, pred_max_idx) != 0)
 		{ 
 			cout << i << ": matched (" << cnt << ")\n";
 			cnt++;

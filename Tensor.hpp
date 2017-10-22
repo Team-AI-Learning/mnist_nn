@@ -21,31 +21,25 @@ public:
 	{
 		struct
 		{
-			UINT mRow; // i
-			UINT mCol; // j
-			UINT mFilterRow; // k
-			UINT mFilterCol; // l
-		};
-		struct
-		{
 			UINT I;
 			UINT J;
 			UINT K;
 			UINT L;
+			UINT M;
 		};
 	};
 
-	double ****arr;
+	double *****arr;
 	UINT size;
 	
 public:
 	// [row][col][filter row][filter col]
-	explicit Tensor(UINT _i, UINT _j = 1, UINT _k = 1, UINT _l = 1)
-		: mRow(_i), mCol(_j), mFilterRow(_k), mFilterCol(_l)
+	explicit Tensor(UINT _i, UINT _j = 1, UINT _k = 1, UINT _l = 1, UINT _m = 1)
+		: I(_i), J(_j), K(_k), L(_l), M(_m)
 	{
-		arr = alloc(I, J, K, L);
+		arr = alloc(I, J, K, L, M);
 		setRandom();
-		size = I*J*K*L;
+		size = I*J*K*L*M;
 		allocated = true;
 	}
 
@@ -60,6 +54,7 @@ public:
 	{
 		if (allocated)
 		{
+			delete[] arr[0][0][0][0];
 			delete[] arr[0][0][0];
 			delete[] arr[0][0];
 			delete[] arr[0];
@@ -68,35 +63,45 @@ public:
 		}
 	}
 
-	double***& operator[](UINT x)
+	double****& operator[](UINT x)
 	{
 		return arr[x];
 	}
 
-	double& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0)
+	double& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0, UINT m = 0)
 	{
-		return arr[i][j][k][l];
+		return arr[i][j][k][l][m];
 	}
 public:
 
 	void setRandom()
 	{
 		default_random_engine generator;
-		double variance = 1.0 / ((double)J*K*L);
+		double variance = 1.0 / ((double)J*K*L*M);
+		
 		normal_distribution<double> distribution(0.0, variance);
 
-		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
-		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
+		FOR5D(i, j, k, l, m, I, J, K, L, M)
 		{
-			arr[i][j][k][l] = distribution(generator);
+			arr[i][j][k][l][m] = distribution(generator);
+			if (arr[i][j][k][l][m] >= 1.0)
+			{
+				cout << "error\n";
+				getchar();
+			}
+				
 		}
+			
 	}
+
 protected:
-	double ****alloc(int max_i, int max_j, int max_k, int max_l) {
-		double *_l = new double[max_i*max_j*max_k*max_l];
-		double **_k = new double*[max_i*max_j*max_k];
-		double ***_j = new double**[max_i*max_j];
-		double ****_i = new double***[max_i];
+	double *****alloc(int max_i, int max_j, int max_k, int max_l, int max_m) {
+
+		double *_m = new double[max_i*max_j*max_k*max_l*max_m];
+		double **_l = new double*[max_i*max_j*max_k*max_l];
+		double ***_k = new double**[max_i*max_j*max_k];
+		double ****_j = new double***[max_i*max_j];
+		double *****_i = new double****[max_i];
 		for (int i = 0; i < max_i; i++) {
 			_i[i] = _j;
 			_j += max_j;
@@ -106,6 +111,10 @@ protected:
 				for (int k = 0; k < max_k; k++) {
 					_i[i][j][k] = _l;
 					_l += max_l;
+					for (int l = 0; l < max_l; l++) {
+						_i[i][j][k][l] = _m;
+						_m += max_m;
+					}
 				}
 			}
 		}
