@@ -75,7 +75,7 @@ public:
 
 	void printImage(int idx)
 	{
-		double***& img = (*images)[0][idx];
+		double***& img = (*images)[idx];
 		
 		FOR2D(ch, r, nChannel, nRow) 
 		{
@@ -106,7 +106,7 @@ protected:
 		printf(string(TAG).append("dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
 			nDummy, nImages, nRow, nCol);
 #endif
-		images = new Tensor(1, nImages, nChannel, nRow, nCol);
+		images = new Tensor(nImages, nChannel, nRow, nCol);
 	}
 	// Read an image
 	void read_pixels()
@@ -116,7 +116,7 @@ protected:
 		{
 			unsigned char buff = 0;
 			in.read((char*)&buff, Byte1);
-			(*images)[0][img][channel][row][col] = (double)buff / 255.0;
+			(*images)[img][channel][row][col] = (double)buff / 255.0;
 		}
 	}
 };
