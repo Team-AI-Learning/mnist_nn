@@ -12,15 +12,23 @@ void Layer::forwardPropagation(Activation _act)
 	act = _act;
 	Layer& in = (*inputLayer);
 	// Calculate z values
-	FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
-		z[batch][i][xr][xc] = 0;
+	FOR4D(batch, f, xr, xc, info.minibatch_size, info.numFilters, info.x_row, info.x_col)
+		z[batch][f][xr][xc] = 0;
 
-	FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
+	FOR4D(batch, f, xr, xc, info.minibatch_size, info.numFilters, info.x_row, info.x_col)
 	{
-		FOR3D(j, wr, wc, inputLayer->info.numNeurons, info.w_row, info.w_col)
-			z[batch][i][xr][xc] += w[i][j][wr][wc] * in.x[batch][j][wr][wc];
+		UINT offset_str_r = 0;
+		offset_str_r = info.getSizeOfZ(in.info.x_row);
+		UINT offset_str_c = offset_str_r;
+		UINT& stride = info.stride;
 
-		z[batch][i][xr][xc] += b[batch][i][xr][xc];
+		FOR2D(offset_r, offset_c, offset_str_r, offset_str_c)
+		{
+			FOR3D(ch, wr, wc, inputLayer->info.numChannels, info.w_row, info.w_col)
+				z[batch][f][xr][xc] += w[f][ch][wr][wc] * in.x[batch][ch][wr+offset_r*stride][wc+offset_c*stride];
+		}
+		
+		z[batch][f][xr][xc] += b[batch][f][xr][xc];
 	}
 
 	// Update x values

@@ -4,16 +4,46 @@
 #include "Tensor.hpp"
 #include "common.h"
 
-// numNeurons, x_row, x_col, w_row, w_col, minibatch_size
+// numNeurons, x_row, x_col, w_row, w_col, stride, minibatch_size
 struct LayerInfo
 {
+	// Note that All of numbers of Neurons, Channels and Filters are actually same thing.
 	UINT numNeurons;
+	UINT& numChannels;
+	UINT& numFilters;
+	
 	UINT x_row;
 	UINT x_col;
 	UINT w_row;
 	UINT w_col;
+	UINT stride;
 	UINT minibatch_size;
-	// stride
+	LayerInfo(UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row, UINT _w_col, UINT _stride, UINT _batch) 
+		: numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
+		x_row(_x_row), x_col(_x_col), w_row(_w_row), w_col(_w_col), stride(_stride), minibatch_size(_batch)
+		{}
+
+	UINT getSizeOfZ(UINT in_x_size, UINT* out_padding = 0)
+	{
+		if (stride == 0)
+			return 1;
+
+		UINT& filter_size = w_row;
+		UINT ret = (in_x_size - filter_size) / stride + 1;
+		UINT r = (in_x_size - filter_size) % stride;
+		UINT pad = 0;
+
+		if (r != 0) // padding is required !
+		{
+			ret++;
+			pad = stride - r;
+			if (pad % 2 != 0)
+				pad++;
+		}
+		if(out_padding != 0)
+			*out_padding = pad;
+		return ret;
+	}
 };
 
 struct DJ // pointers must be declared first
@@ -78,15 +108,15 @@ protected:
 	DJ& dJ;
 public:
 	// Constructor for Hidden Layer
-	// note that if allocation fails, mem leak would be occurred.
+	// if allocation fails, mem leak would be occurred.
 	explicit Layer(Layer* _inputLayer, LayerInfo _info)
 		: inputLayer(_inputLayer), info(_info), 
-		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)), 
-		_dJ(new DJ(inputLayer->info.numNeurons, info)), 
+		_x(new Tensor(info.minibatch_size, info.numFilters, info.x_row, info.x_col)),
+		_dJ(new DJ(inputLayer->info.numFilters, info)),
 		x(*_x), dJ(*_dJ),
-		z(info.minibatch_size, info.numNeurons, info.x_row, info.x_col),
-		w(info.numNeurons, inputLayer->info.numNeurons, info.w_row, info.w_col),
-		b(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
+		z(info.minibatch_size, info.numFilters, info.x_row, info.x_col),
+		w(info.numFilters, inputLayer->info.numChannels, info.w_row, info.w_col),
+		b(info.minibatch_size, info.numFilters, info.x_row, info.x_col)
 	{
 		isInputLayer = false;
 	}
@@ -94,7 +124,7 @@ public:
 	// Constructor for Input Layer.
 	explicit Layer(LayerInfo _info)
 		: inputLayer(0), info(_info),
-		_x(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_x(new Tensor(info.minibatch_size, info.numChannels, info.x_row, info.x_col)),
 		_dJ(0), 
 		x(*_x), dJ(*_dJ)
 	{

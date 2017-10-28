@@ -17,6 +17,7 @@ using namespace std;
 // 2. Tensor Architecture(Tensor multiplication, TensorInfo) & Interface (Element product, operator*) update
 // 3. LayerInfo structure
 // 4. FileReader read(maxRead);
+// 5. Parallel computation on for loop by OMP
 
 static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo info)
 {
@@ -32,22 +33,23 @@ static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo inf
 }
 #define L1_NUM_NEURONS 50
 #define L2_NUM_NEURONS 10
+#define TEST_SIZE 10000
 
 int main(void)
 {
 	Layer::learning_rate = 0.01;
 	ImageReader trainData("train-images.idx3-ubyte");
-	trainData.read();
+	trainData.read(TEST_SIZE);
 	LabelReader inputLabel("train-labels.idx1-ubyte");
-	inputLabel.read();
+	inputLabel.read(TEST_SIZE);
 	ImageReader testData("t10k-images.idx3-ubyte");
-	testData.read();
+	testData.read(TEST_SIZE);
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
-	testLabel.read();
+	testLabel.read(TEST_SIZE);
 
-	LayerInfo inputLayerInfo= { 1, 28, 28, 0, 0, 1 };
-	LayerInfo layer1Info	= { L1_NUM_NEURONS, 1, 1, 28, 28, 1 };
-	LayerInfo layer2Info	= { L2_NUM_NEURONS, 1, 1, 1, 1, 1 };
+	LayerInfo inputLayerInfo = { 1, 28, 28, 0, 0, 0, 1 };
+	LayerInfo layer1Info	= { L1_NUM_NEURONS, 2, 2, 27, 27, 1, 1 };
+	LayerInfo layer2Info	= { L2_NUM_NEURONS, 1, 1, 2, 2, 0, 1 };
 	
 	Layer inputLayer(inputLayerInfo);
 	Layer layer1(&inputLayer, layer1Info);
