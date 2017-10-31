@@ -1,12 +1,17 @@
 #ifndef __LAYER__H
 #define __LAYER__H
 
+#include <vector>
+#include <utility>
 #include "Tensor.hpp"
 #include "common.h"
 
 // numNeurons, x_row, x_col, w_row, w_col, stride, minibatch_size
 struct LayerInfo
 {
+	enum LayerType { None, Softmax, Conv_ReLU, MaxPooling};
+	LayerType type;
+
 	// Note that All of numbers of Neurons, Channels and Filters are actually same thing.
 	UINT numNeurons;
 	UINT& numChannels;
@@ -16,10 +21,11 @@ struct LayerInfo
 	UINT x_col;
 	UINT w_row;
 	UINT w_col;
+
 	UINT stride;
 	UINT minibatch_size;
-	LayerInfo(UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row, UINT _w_col, UINT _stride, UINT _batch) 
-		: numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
+	LayerInfo(LayerType _type, UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row = 0, UINT _w_col = 0, UINT _stride = 0, UINT _batch = 1 ) 
+		: type(_type), numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
 		x_row(_x_row), x_col(_x_col), w_row(_w_row), w_col(_w_col), stride(_stride), minibatch_size(_batch)
 		{}
 
@@ -44,6 +50,7 @@ struct LayerInfo
 			*out_padding = pad;
 		return ret;
 	}
+
 };
 
 struct DJ // pointers must be declared first
@@ -91,14 +98,14 @@ public:
 	friend struct DJ;
 	static double learning_rate;
 public:
-	enum Activation {Identity, ReLU, Sigmoid, Softmax};
+	enum Activation {Identity, ReLU, Sigmoid, Softmax, MaxPooling};
 	bool isInputLayer;
 	Layer* inputLayer;
 	LayerInfo info;
 protected:
 	Activation act;
 protected:
-	Tensor *_x; 
+	Tensor *_x;
 	DJ *_dJ;
 
 	Tensor& x;
@@ -139,6 +146,9 @@ public:
 
 	// Set Activation method and propagate
 	void forwardPropagation(Activation _act);
+
+	// Pooling
+	Tensor* maxPooling(bool require);
 
 	// Parameters are for Output layer.
 	void backPropagation(Tensor* onehot = 0, int _idx = 0);

@@ -40,11 +40,12 @@ public:
 	
 public:
 	// [row][col][filter row][filter col]
-	explicit Tensor(UINT _i, UINT _j = 1, UINT _k = 1, UINT _l = 1)
+	explicit Tensor(UINT _i, UINT _j = 1, UINT _k = 1, UINT _l = 1, bool randomized = true)
 		: mRow(_i), mCol(_j), mFilterRow(_k), mFilterCol(_l)
 	{
 		arr = alloc(I, J, K, L);
-		setRandom();
+		if(randomized) setRandom();
+		else setZero();
 		size = I*J*K*L;
 		allocated = true;
 	}
@@ -89,6 +90,15 @@ public:
 		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
 		{
 			arr[i][j][k][l] = distribution(generator);
+		}
+	}
+
+	void setZero()
+	{
+		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
+		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
+		{
+			arr[i][j][k][l] = 0;
 		}
 	}
 protected:
