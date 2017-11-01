@@ -19,7 +19,7 @@ using namespace std;
 // 4. FileReader read(maxRead);
 // 5. Parallel computation on for loop by OMP
 
-static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo info)
+static inline double cross_entropy(Tensor<>& t, Tensor<>& x, UINT idx, LayerInfo info)
 {
 	double sum = 0;
 
@@ -33,7 +33,7 @@ static inline double cross_entropy(Tensor& t, Tensor& x, UINT idx, LayerInfo inf
 }
 #define L1_NUM_NEURONS 50
 #define L2_NUM_NEURONS 10
-#define TEST_SIZE 1000
+#define TEST_SIZE 100
 
 
 namespace OMP
@@ -83,7 +83,7 @@ int main(void)
 	Layer inputLayer(inputLayerInfo);
 	Layer layer1(&inputLayer, layer1Info);
 	Layer pooling1(&layer1, pooling1Info);
-	Layer layer2(&layer1, layer2Info);
+	Layer layer2(&pooling1, layer2Info);
 
 	double fptime = 0;
 	double bptime = 0;
@@ -93,7 +93,7 @@ int main(void)
 		inputLayer.updateInput(*trainData.images, i);
 		TIMESTAMP_START(fp)
 		layer1.forwardPropagation(Layer::Activation::ReLU);
-		Tensor* idxInfo = pooling1.maxPooling(true);
+		pooling1.maxPooling();
 		layer2.forwardPropagation(Layer::Activation::Softmax);
 		TIMESTAMP_SAVE(fp, fptime)
 
@@ -101,10 +101,8 @@ int main(void)
 		cout << i << " entropy " << j << endl;
 		TIMESTAMP_START(bp)
 		layer2.backPropagation(inputLabel.onehot_label, i);
-		pooling1.backPropagation(idxInfo);
+		pooling1.backPropagation();
 		layer1.backPropagation();
-		delete idxInfo;
-		idxInfo = 0;
 		TIMESTAMP_SAVE(bp, bptime)
 	}
 	TIMESTAMP_END(trainingTime, "elapsed time on Training")
@@ -116,12 +114,12 @@ int main(void)
 	{
 		inputLayer.updateInput(*testData.images, i);
 		layer1.forwardPropagation(Layer::Activation::ReLU);
-		pooling1.maxPooling(false);
+		pooling1.maxPooling();
 		layer2.forwardPropagation(Layer::Activation::Softmax);
 
 		double pred_max = 0;
 		int pred_max_idx = 0;
-		Tensor& pred_x = layer2.getOutput();
+		Tensor<>& pred_x = layer2.getOutput();
 		for (UINT ca = 0; ca < inputLabel.nCategory; ca++)
 		{
 			// minibatch size 1

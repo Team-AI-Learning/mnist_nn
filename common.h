@@ -11,6 +11,7 @@ for(UINT x = 0; x < n; ++ x)
 
 #define FOR2D(x1, x2, n1, n2) for(int x1 = 0; x1 < n1; x1++) for(UINT x2 = 0; x2 < n2; x2++) 
 
+// TODO: removing scopes for more readability
 #define FOR2D_OMP(x1, x2, n1, n2, looper) \
 for(int looper = 0; looper < n1*n2; looper++) \
 {	int x1 = looper / n2; int x2 = looper % n2; 

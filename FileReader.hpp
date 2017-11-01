@@ -32,7 +32,7 @@ public:
 	UINT nChannel; // 1 for mnist nn.
 	UINT nRow; // 28
 	UINT nCol; // 28
-	Tensor *images; // [numImages][channel][row][col]
+	Tensor<> *images; // [numImages][channel][row][col]
 	ifstream in;
 private:
 	int maxRead;
@@ -106,7 +106,7 @@ protected:
 		printf(string(TAG).append("dummy %d, nImage %d, nRow %d, nCol %d\n").c_str(),
 			nDummy, nImages, nRow, nCol);
 #endif
-		images = new Tensor(nImages, nChannel, nRow, nCol);
+		images = new Tensor<>(nImages, nChannel, nRow, nCol);
 	}
 	// Read an image
 	void read_pixels()
@@ -127,9 +127,9 @@ public:
 	const string TAG = "[LabelReader] ";
 	UINT nDummy;
 	UINT nLabels; // 60000
-	Tensor* label; // answer of the image
+	Tensor<>* label; // answer of the image
 	UINT nCategory; // 10
-	Tensor* onehot_label;
+	Tensor<>* onehot_label;
 	ifstream in;
 
 public:
@@ -170,7 +170,7 @@ public:
 		nDummy = ReverseInt(nDummy);
 		nLabels = ReverseInt(nLabels); 
 		if (_maxRead != 0) nLabels = _maxRead;
-		label = new Tensor(nLabels);
+		label = new Tensor<>(nLabels);
 		for (UINT i = 0; i < nLabels; i++)
 		{
 			unsigned char buff = 0;
@@ -204,7 +204,7 @@ protected:
 			printf(string(TAG).append("error! already generated!!").c_str());
 			return;
 		}
-		onehot_label = new Tensor(nLabels, nCategory);
+		onehot_label = new Tensor<>(nLabels, nCategory);
 
 		FOR(i, nLabels)
 		{

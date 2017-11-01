@@ -74,42 +74,49 @@ void Layer::forwardPropagation(Activation _act)
 	}
 }
 
-Tensor* Layer::maxPooling(bool require)
+void Layer::maxPooling()
 {
-	Layer& in = *inputLayer;
-	Tensor* idxInfo = 0;
-	if(require)
-		idxInfo = new Tensor(in.info.minibatch_size, in.info.numNeurons, in.info.x_row, in.info.x_col, false);
+	act = MaxPooling;
+	if (maxpool_idx == 0)
+		maxpool_idx = new MaxPoolingIdxInfo(info.minibatch_size,
+			info.numChannels, info.x_row, info.x_col, false);
+	else
+		maxpool_idx->setZero<pair<int,int>>();
 	
-	FOR3D(batch, xr, xc, info.minibatch_size, info.x_row, info.x_col)
+	// Calculate stride & size of filter of maxpooling
+	Layer& in = (*inputLayer);
+	info.w_col = info.w_row = in.info.x_row / info.x_row;
+	// You have to initialize size of correct x_row value.
+	assert(in.info.x_row % info.x_row == 0);
+	UINT& stride = info.w_row;
+
+	double local_z = 0;
+	FOR2D(batch, ch, info.minibatch_size, info.numChannels)
 	{
-		int offset_r = info.x_row*xr;
-		int offset_c = info.x_col*xc;
-		FOR(i, info.numNeurons)
-		{
-			double maxPool = -INFINITY;
-			int idx_r = 0;
-			int idx_c = 0;
-			FOR2D(_xr, _xc, info.x_row, info.x_col)
+#pragma omp parallel for schedule(dynamic, 1) reduction(+:local_z) // TODO: job to 1 but this value is calculated by stride&filter size
+		FOR2D_OMP(xr, xc, info.x_row, info.x_col, stride_calculation)
+			double max_local_x = -INFINITY;
+			int local_idx_r = 0;
+			int local_idx_c = 0;
+			// Find Max value and the index
+			FOR2D(wr, wc, info.w_row, info.w_col)
 			{
-				double in_x = in.x[batch][i][_xr + offset_r][_xc + offset_c];
-				if (in_x > maxPool)
+				double in_x = in.x[batch][ch][wr + xr*stride][wc + xc*stride];
+				if (in_x >= max_local_x)
 				{
-					maxPool = in_x;
-					idx_r = _xr + offset_r;
-					idx_c = _xc + offset_c;
+					max_local_x = in_x;
+					local_idx_r = wr + xr*stride;
+					local_idx_c = wc + xc*stride;
 				}
 			}
+			// store the indice of input x of maximum value.
+			(*maxpool_idx)[batch][ch][xr][xc] = std::make_pair(local_idx_r, local_idx_c);
+		FOR_OMP_END
 
-			if(require)
-				(*idxInfo)[batch][i][idx_r][idx_c] = 1;
-			x[batch][i][xr][xc] = maxPool;
-		}
 	}
-	return idxInfo;
 }
 
-void Layer::backPropagation(Tensor* onehot, int _idx)
+void Layer::backPropagation(Tensor<>* onehot, int _idx)
 {
 	Layer& in = (*inputLayer);
 	// Update 'dJ/dz'
@@ -133,20 +140,20 @@ void Layer::backPropagation(Tensor* onehot, int _idx)
 			dJ.dz[batch][i][xr][xc] = x[batch][i][xr][xc] - onehot->array(_idx, i);
 		break;
 	case MaxPooling:
+		FOR4D(batch, in_i, in_xr, in_xc, in.info.minibatch_size, in.info.numNeurons, in.info.x_row, in.info.x_col)
+			in.dJ.dx[batch][in_i][in_xr][in_xc] = 0;
+
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 		{
-			Tensor& idxInfo = *onehot;
-			if (idxInfo[batch][i][xr][xc] >= 1)
-				in.dJ.dx[batch][i][xr][xc] = dJ.dx[batch][i][xr][xc];
-			else
-				in.dJ.dx[batch][i][xr][xc] = 0;
+			pair<int, int> &p = (*maxpool_idx)[batch][i][xr][xc];
+			in.dJ.dx[batch][i][p.first][p.second] = dJ.dx[batch][i][xr][xc];
 		}
+		return;
 		break;
 	}
 
 	if (!in.isInputLayer)
 	{
-		if(in.act != MaxPooling) 
 		FOR4D(batch, j, wr, wc, info.minibatch_size, in.info.numNeurons, info.w_row, info.w_col)
 		{
 			in.dJ.dx[batch][j][wr][wc] = 0;
@@ -159,8 +166,7 @@ void Layer::backPropagation(Tensor* onehot, int _idx)
 			in.dJ.dx[batch][j][wr][wc] = local_in_x;
 		}
 	}
-	if(act != MaxPooling)
-		_updateWeightBias();
+	_updateWeightBias();
 }
 
 void Layer::_updateWeightBias()
@@ -187,7 +193,7 @@ void Layer::_updateWeightBias()
 	}
 }
 
-void Layer::updateInput(Tensor& input, int idx)
+void Layer::updateInput(Tensor<>& input, int idx)
 {
 	FOR4D(i, j, k, l, info.minibatch_size, input.J, input.K, input.L)
 		x[i][j][k][l] = input[idx][j][k][l];

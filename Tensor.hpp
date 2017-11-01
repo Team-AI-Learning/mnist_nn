@@ -12,7 +12,10 @@ using namespace std;
 // TODO:
 // add dimension or Format info var
 // operator= for shallow/deep copying
-
+// template for data type; Tensor<double>
+// void elementProduct(const Tensor& t, index params)
+// static void compare(const double epsilon = EPSILON)
+template<typename T=double>
 class Tensor
 {
 public:
@@ -35,17 +38,16 @@ public:
 		};
 	};
 
-	double ****arr;
+	T ****arr;
 	UINT size;
 	
 public:
-	// [row][col][filter row][filter col]
 	explicit Tensor(UINT _i, UINT _j = 1, UINT _k = 1, UINT _l = 1, bool randomized = true)
 		: mRow(_i), mCol(_j), mFilterRow(_k), mFilterCol(_l)
 	{
 		arr = alloc(I, J, K, L);
-		if(randomized) setRandom();
-		else setZero();
+		if(randomized) setRandom<T>();
+		else setZero<T>();
 		size = I*J*K*L;
 		allocated = true;
 	}
@@ -69,31 +71,30 @@ public:
 		}
 	}
 
-	double***& operator[](UINT x)
+	T***& operator[](UINT x)
 	{
 		return arr[x];
 	}
 
-	double& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0)
+	T& array(UINT i, UINT j = 0, UINT k = 0, UINT l = 0)
 	{
 		return arr[i][j][k][l];
 	}
 public:
-
-	void setRandom()
+	template<typename T> void setRandom() { assert(false); }
+	template<> void setRandom<double>()
 	{
 		default_random_engine generator;
 		double variance = 1.0 / ((double)J*K*L);
 		normal_distribution<double> distribution(0.0, variance);
-
 		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
 		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
 		{
 			arr[i][j][k][l] = distribution(generator);
 		}
 	}
-
-	void setZero()
+	
+	template<typename T> void setZero()
 	{
 		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
 		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
@@ -101,12 +102,23 @@ public:
 			arr[i][j][k][l] = 0;
 		}
 	}
+
+	template<> void setZero<pair<int,int>>() 
+	{
+		static pair<int, int> zero = std::make_pair<int, int>(0, 0);
+		for (UINT i = 0; i < I; i++) for (UINT j = 0; j < J; j++)
+		for (UINT k = 0; k < K; k++) for (UINT l = 0; l < L; l++)
+		{
+			arr[i][j][k][l] = zero;
+		}
+	}
 protected:
-	double ****alloc(int max_i, int max_j, int max_k, int max_l) {
-		double *_l = new double[max_i*max_j*max_k*max_l];
-		double **_k = new double*[max_i*max_j*max_k];
-		double ***_j = new double**[max_i*max_j];
-		double ****_i = new double***[max_i];
+	T ****alloc(int max_i, int max_j, int max_k, int max_l) 
+	{
+		T *_l = new T[max_i*max_j*max_k*max_l];
+		T **_k = new T*[max_i*max_j*max_k];
+		T ***_j = new T**[max_i*max_j];
+		T ****_i = new T***[max_i];
 		for (int i = 0; i < max_i; i++) {
 			_i[i] = _j;
 			_j += max_j;

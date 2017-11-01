@@ -9,10 +9,7 @@
 // numNeurons, x_row, x_col, w_row, w_col, stride, minibatch_size
 struct LayerInfo
 {
-	enum LayerType { None, Softmax, Conv_ReLU, MaxPooling};
-	LayerType type;
-
-	// Note that All of numbers of Neurons, Channels and Filters are actually same thing.
+	// Note that All of numbers of Neurons, Channels and Filters are actually same.
 	UINT numNeurons;
 	UINT& numChannels;
 	UINT& numFilters;
@@ -24,8 +21,8 @@ struct LayerInfo
 
 	UINT stride;
 	UINT minibatch_size;
-	LayerInfo(LayerType _type, UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row = 0, UINT _w_col = 0, UINT _stride = 0, UINT _batch = 1 ) 
-		: type(_type), numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
+	LayerInfo(UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row = 0, UINT _w_col = 0, UINT _stride = 0, UINT _batch = 1 ) 
+		: numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
 		x_row(_x_row), x_col(_x_col), w_row(_w_row), w_col(_w_col), stride(_stride), minibatch_size(_batch)
 		{}
 
@@ -55,24 +52,24 @@ struct LayerInfo
 
 struct DJ // pointers must be declared first
 {
-	Tensor *_dx;
-	Tensor *_dz;
-	Tensor *_dw;
-	Tensor *_db;
+	Tensor<> *_dx;
+	Tensor<> *_dz;
+	Tensor<> *_dw;
+	Tensor<> *_db;
 	bool allocated;
 
-	Tensor& dx;
-	Tensor& dz;
-	Tensor& dw;
-	Tensor& db;
+	Tensor<>& dx;
+	Tensor<>& dz;
+	Tensor<>& dw;
+	Tensor<>& db;
 
 	// DJ(number of input neurons, number of current neurons)
 	DJ(UINT input_numNeurons, LayerInfo& info)
 		:
-		_dx(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
-		_dz(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
-		_dw(new Tensor(info.numNeurons,		input_numNeurons, info.w_row, info.w_col)),
-		_db(new Tensor(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_dx(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_dz(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_dw(new Tensor<>(info.numNeurons,		input_numNeurons, info.w_row, info.w_col)),
+		_db(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
 		dx(*_dx), dz(*_dz), dw(*_dw), db(*_db)
 	{
 
@@ -105,21 +102,24 @@ public:
 protected:
 	Activation act;
 protected:
-	Tensor *_x;
+	Tensor<> *_x;
 	DJ *_dJ;
+	typedef Tensor<pair<int, int>> MaxPoolingIdxInfo;
+	MaxPoolingIdxInfo *maxpool_idx;
 
-	Tensor& x;
-	Tensor z;
-	Tensor w;
-	Tensor b;
+	Tensor<>& x;
+	Tensor<> z;
+	Tensor<> w;
+	Tensor<> b;
 	DJ& dJ;
 public:
 	// Constructor for Hidden Layer
 	// if allocation fails, mem leak would be occurred.
 	explicit Layer(Layer* _inputLayer, LayerInfo _info)
 		: inputLayer(_inputLayer), info(_info), 
-		_x(new Tensor(info.minibatch_size, info.numFilters, info.x_row, info.x_col)),
+		_x(new Tensor<>(info.minibatch_size, info.numFilters, info.x_row, info.x_col)),
 		_dJ(new DJ(inputLayer->info.numFilters, info)),
+		maxpool_idx(0),
 		x(*_x), dJ(*_dJ),
 		z(info.minibatch_size, info.numFilters, info.x_row, info.x_col),
 		w(info.numFilters, inputLayer->info.numChannels, info.w_row, info.w_col),
@@ -131,8 +131,9 @@ public:
 	// Constructor for Input Layer.
 	explicit Layer(LayerInfo _info)
 		: inputLayer(0), info(_info),
-		_x(new Tensor(info.minibatch_size, info.numChannels, info.x_row, info.x_col)),
+		_x(new Tensor<>(info.minibatch_size, info.numChannels, info.x_row, info.x_col)),
 		_dJ(0), 
+		maxpool_idx(0),
 		x(*_x), dJ(*_dJ)
 	{
 		isInputLayer = true;
@@ -142,22 +143,25 @@ public:
 	{
 		delete _x; // _x should be always allocated.
 		_x = 0;
+		if (maxpool_idx != 0)
+			delete maxpool_idx;
+		maxpool_idx = 0;
 	}
 
 	// Set Activation method and propagate
 	void forwardPropagation(Activation _act);
 
 	// Pooling
-	Tensor* maxPooling(bool require);
+	void maxPooling();
 
 	// Parameters are for Output layer.
-	void backPropagation(Tensor* onehot = 0, int _idx = 0);
+	void backPropagation(Tensor<>* onehot = 0, int _idx = 0);
 
 	// Returns a pointer of x
-	Tensor& getOutput() { return x; }
+	Tensor<>& getOutput() { return x; }
 	
 	// To switch input data for Input Layer
-	void updateInput(Tensor& input, int idx);
+	void updateInput(Tensor<>& input, int idx);
 protected:
 	// Calculate dw, db and Update w, b values after dz, dx.
 	void _updateWeightBias();
