@@ -5,6 +5,7 @@
 #include<random>
 #include<time.h>
 #include<stdlib.h>
+#include<assert.h>
 
 #include"common.h"
 using namespace std;
@@ -115,6 +116,7 @@ public:
 protected:
 	T ****alloc(int max_i, int max_j, int max_k, int max_l) 
 	{
+		assert(max_i*max_j*max_k*max_l > 0);
 		T *_l = new T[max_i*max_j*max_k*max_l];
 		T **_k = new T*[max_i*max_j*max_k];
 		T ***_j = new T**[max_i*max_j];

@@ -8,9 +8,8 @@
 
 double Layer::learning_rate = 0.01;
 
-void Layer::forwardPropagation(Activation _act)
+void Layer::forwardPropagation()
 {
-	act = _act;
 	Layer& in = (*inputLayer);
 	// Calculate z values
 #pragma omp parallel for 
@@ -39,21 +38,21 @@ void Layer::forwardPropagation(Activation _act)
 	}
 
 	// Update x values
-	switch (act)
+	switch (info.act)
 	{
-	case Identity:
+	case Act::Identity:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			x[batch][i][xr][xc] = z[batch][i][xr][xc];
 		break;
-	case ReLU:
+	case Act::ReLU:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			x[batch][i][xr][xc] = CMP_MAX(z[batch][i][xr][xc], 0);
 		break;
-	case Sigmoid:
+	case Act::Sigmoid:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			x[batch][i][xr][xc] = 1 / (1 + exp(-z[batch][i][xr][xc]));
 		break;
-	case Softmax:
+	case Act::Softmax:
 		FOR(batch, info.minibatch_size)
 		{
 			double z_max = 0;
@@ -76,7 +75,6 @@ void Layer::forwardPropagation(Activation _act)
 
 void Layer::maxPooling()
 {
-	act = MaxPooling;
 	if (maxpool_idx == 0)
 		maxpool_idx = new MaxPoolingIdxInfo(info.minibatch_size,
 			info.numChannels, info.x_row, info.x_col, false);
@@ -120,26 +118,26 @@ void Layer::backPropagation(Tensor<>* onehot, int _idx)
 {
 	Layer& in = (*inputLayer);
 	// Update 'dJ/dz'
-	switch (act)
+	switch (info.act)
 	{
-	case Identity:
+	case Act::Identity:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			dJ.dz[batch][i][xr][xc] = dJ.dx[batch][i][xr][xc];
 		break;
-	case ReLU:
+	case Act::ReLU:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			dJ.dz[batch][i][xr][xc] = dJ.dx[batch][i][xr][xc] * ((x[batch][i][xr][xc] > 0) ? 1 : 0);
 		break;
-	case Sigmoid:
+	case Act::Sigmoid:
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			dJ.dz[batch][i][xr][xc] = dJ.dx[batch][i][xr][xc] * x[batch][i][xr][xc] * (1 - x[batch][i][xr][xc]);
 		break;
-	case Softmax: // cross entropy
+	case Act::Softmax: // cross entropy
 		assert(onehot != 0);
 		FOR4D(batch, i, xr, xc, info.minibatch_size, info.numNeurons, info.x_row, info.x_col)
 			dJ.dz[batch][i][xr][xc] = x[batch][i][xr][xc] - onehot->array(_idx, i);
 		break;
-	case MaxPooling:
+	case Act::MaxPooling:
 		FOR4D(batch, in_i, in_xr, in_xc, in.info.minibatch_size, in.info.numNeurons, in.info.x_row, in.info.x_col)
 			in.dJ.dx[batch][in_i][in_xr][in_xc] = 0;
 

@@ -13,11 +13,7 @@ using namespace std;
 // 4. Other activations
 
 // TODO: SW architecture
-// 1. Application of Strategy on Activation & Loss Functions
-// 2. Tensor Architecture(Tensor multiplication, TensorInfo) & Interface (Element product, operator*) update
-// 3. LayerInfo structure
-// 4. FileReader read(maxRead);
-// 5. Parallel computation on for loop by OMP
+// 1. Tensor Architecture(Tensor multiplication, TensorInfo) & Interface (Element product, operator*) update
 
 static inline double cross_entropy(Tensor<>& t, Tensor<>& x, UINT idx, LayerInfo info)
 {
@@ -69,32 +65,30 @@ int main(void)
 	LabelReader testLabel("t10k-labels.idx1-ubyte");
 	testLabel.read(TEST_SIZE);
 
+	typedef LayerInfo::Activation Act;
+	// activation, channel, x size, w size, stride, batch size
+	LayerInfo inputLayerInfo = { Act::None, 1, 28, 28, 0, 0, 0, 1 };
+	LayerInfo layer1Info = { Act::ReLU, L1_NUM_NEURONS, 14, 14, 14, 14, 1, 1 };
+	LayerInfo pooling1Info = { Act::MaxPooling, L1_NUM_NEURONS, 7, 7 }; // 1/4 size of original
+	LayerInfo layer2Info = { Act::Softmax, L2_NUM_NEURONS, 1, 1, 7, 7, 0, 1 };
 
-//	LayerInfo inputLayerInfo = { 1, 28, 28, 0, 0, 0, 1 };
-//	LayerInfo layer1Info = { L1_NUM_NEURONS, 4, 4, 25, 25, 1, 1 }; // 4x4 result
-//	LayerInfo pooling1Info = { L1_NUM_NEURONS, 2, 2 };
-//	LayerInfo layer2Info = { L2_NUM_NEURONS, 1, 1, 2, 2, 0, 1 };
-
-	LayerInfo inputLayerInfo = { 1, 28, 28 };
-	LayerInfo layer1Info = { L1_NUM_NEURONS, 1, 1, 28, 28, 0, 1 };
-	LayerInfo pooling1Info = { L1_NUM_NEURONS, 1, 1 };
-	LayerInfo layer2Info = { L2_NUM_NEURONS, 1, 1, 1, 1, 0, 1 };
-	
+	// TensorFlow.addLayer() -> linkedlist<Layer>
 	Layer inputLayer(inputLayerInfo);
 	Layer layer1(&inputLayer, layer1Info);
-	Layer pooling1(&layer1, pooling1Info);
+	Layer pooling1(&layer1, pooling1Info, true);
 	Layer layer2(&pooling1, layer2Info);
 
 	double fptime = 0;
 	double bptime = 0;
+	// TensorFlow.run()
 	TIMESTAMP_START(trainingTime)
 	for (UINT i = 0; i < trainData.nImages; i++)
 	{
 		inputLayer.updateInput(*trainData.images, i);
 		TIMESTAMP_START(fp)
-		layer1.forwardPropagation(Layer::Activation::ReLU);
+		layer1.forwardPropagation();
 		pooling1.maxPooling();
-		layer2.forwardPropagation(Layer::Activation::Softmax);
+		layer2.forwardPropagation();
 		TIMESTAMP_SAVE(fp, fptime)
 
 		double j = cross_entropy(*inputLabel.onehot_label, layer2.getOutput(), i, layer2Info);
@@ -113,9 +107,9 @@ int main(void)
 	for (UINT i = 0; i < testData.nImages; i++)
 	{
 		inputLayer.updateInput(*testData.images, i);
-		layer1.forwardPropagation(Layer::Activation::ReLU);
+		layer1.forwardPropagation();
 		pooling1.maxPooling();
-		layer2.forwardPropagation(Layer::Activation::Softmax);
+		layer2.forwardPropagation();
 
 		double pred_max = 0;
 		int pred_max_idx = 0;

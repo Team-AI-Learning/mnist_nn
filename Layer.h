@@ -9,6 +9,8 @@
 // numNeurons, x_row, x_col, w_row, w_col, stride, minibatch_size
 struct LayerInfo
 {
+	enum Activation { None, Identity, ReLU, Sigmoid, Softmax, MaxPooling };
+	Activation act;
 	// Note that All of numbers of Neurons, Channels and Filters are actually same.
 	UINT numNeurons;
 	UINT& numChannels;
@@ -21,8 +23,8 @@ struct LayerInfo
 
 	UINT stride;
 	UINT minibatch_size;
-	LayerInfo(UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row = 0, UINT _w_col = 0, UINT _stride = 0, UINT _batch = 1 ) 
-		: numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
+	LayerInfo(Activation _act, UINT _numNeurons, UINT _x_row, UINT _x_col, UINT _w_row = 0, UINT _w_col = 0, UINT _stride = 0, UINT _batch = 1 ) 
+		: act(_act), numNeurons(_numNeurons), numChannels(numNeurons), numFilters(numNeurons),
 		x_row(_x_row), x_col(_x_col), w_row(_w_row), w_col(_w_col), stride(_stride), minibatch_size(_batch)
 		{}
 
@@ -68,13 +70,23 @@ struct DJ // pointers must be declared first
 		:
 		_dx(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
 		_dz(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
-		_dw(new Tensor<>(info.numNeurons,		input_numNeurons, info.w_row, info.w_col)),
+		_dw( new Tensor<>(info.numNeurons,	input_numNeurons, info.w_row, info.w_col)),
 		_db(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		dx(*_dx), dz(*_dz), dw(*_dw), db(*_db)
+	{
+		
+	}
+	// Workaround code for Maxpooling
+	DJ(UINT input_numNeurons, LayerInfo& info, bool is_maxpooling)
+		:
+		_dx(new Tensor<>(info.minibatch_size, info.numNeurons, info.x_row, info.x_col)),
+		_dz(0),
+		_dw(0),
+		_db(0),
 		dx(*_dx), dz(*_dz), dw(*_dw), db(*_db)
 	{
 
 	}
-
 	~DJ()
 	{
 		// Check whether DJ has been allocated.
@@ -95,12 +107,10 @@ public:
 	friend struct DJ;
 	static double learning_rate;
 public:
-	enum Activation {Identity, ReLU, Sigmoid, Softmax, MaxPooling};
 	bool isInputLayer;
 	Layer* inputLayer;
 	LayerInfo info;
-protected:
-	Activation act;
+	typedef LayerInfo::Activation Act;
 protected:
 	Tensor<> *_x;
 	DJ *_dJ;
@@ -128,9 +138,20 @@ public:
 		isInputLayer = false;
 	}
 
+	// Workaround code for Maxpooling
+	explicit Layer(Layer* _inputLayer, LayerInfo _info, bool maxpooling)
+		: inputLayer(_inputLayer), info(_info),
+		_x(new Tensor<>(info.minibatch_size, info.numFilters, info.x_row, info.x_col)),
+		_dJ(new DJ(inputLayer->info.numFilters, info, maxpooling)),
+		maxpool_idx(0),
+		x(*_x), dJ(*_dJ)
+	{
+		isInputLayer = false;
+	}
+
 	// Constructor for Input Layer.
 	explicit Layer(LayerInfo _info)
-		: inputLayer(0), info(_info),
+		: inputLayer(0), info(_info), 
 		_x(new Tensor<>(info.minibatch_size, info.numChannels, info.x_row, info.x_col)),
 		_dJ(0), 
 		maxpool_idx(0),
@@ -149,7 +170,7 @@ public:
 	}
 
 	// Set Activation method and propagate
-	void forwardPropagation(Activation _act);
+	void forwardPropagation();
 
 	// Pooling
 	void maxPooling();
